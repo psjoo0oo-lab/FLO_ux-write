@@ -34,3 +34,9 @@ npm run dev
 - **경로**: `/admin`
 - **비밀번호**: `2025PDtone&flo`
 - **기능**: 가이드라인 관리, 사용자 의견 확인
+
+## 배포
+
+- **프로덕션 URL**: https://flo-ux-write-k387.vercel.app
+- **자동 배포**: `main` 브랜치에 푸시 시 자동 배포됨
+- **플랫폼**: Vercel
