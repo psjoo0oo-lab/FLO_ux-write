@@ -1,7 +1,8 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { ToneLevel, WritingContext, AnalysisResult, CompareResult, WritingMode, Attachment } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// 사내 GPT OSS 120b 모델 API 엔드포인트
+const LLM_API_URL = "http://10.1.22.181:11434/api/chat";
+const MODEL_NAME = "gpt-oss:120b";
 
 const SYSTEM_INSTRUCTION_BASE = `
 당신은 한국 최고의 UX 라이팅 컨설턴트입니다. 
@@ -42,19 +43,60 @@ const decodeBase64Text = (str: string): string => {
     }
 };
 
-// Helper to process attachments into Gemini Parts
-const processAttachments = (attachments: Attachment[]): any[] => {
+// Helper to process attachments into text content
+const processAttachments = (attachments: Attachment[]): string => {
     return attachments.map(file => {
         if (file.type === 'application/pdf') {
-            // Send PDF as inline binary data
-            return { inlineData: { mimeType: file.type, data: file.data } };
+            // PDF는 텍스트 추출이 필요하지만, 현재는 파일명만 표시
+            return `[참고 PDF 파일: ${file.name}]`;
         } else {
-            // Assume text-based files (txt, md, csv, etc.)
-            // Decode and send as text part
+            // 텍스트 기반 파일은 내용 디코딩
             const content = decodeBase64Text(file.data);
-            return { text: `[참고 파일: ${file.name}]\n${content}\n---` };
+            return `[참고 파일: ${file.name}]\n${content}\n---`;
         }
+    }).join('\n');
+};
+
+// LLM API 호출 헬퍼 함수
+const callLLM = async (userMessage: string): Promise<string> => {
+  try {
+    const response = await fetch(LLM_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: MODEL_NAME,
+        messages: [
+          {
+            role: 'system',
+            content: SYSTEM_INSTRUCTION_BASE
+          },
+          {
+            role: 'user',
+            content: userMessage
+          }
+        ],
+        stream: false
+      })
     });
+
+    if (!response.ok) {
+      throw new Error(`LLM API Error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    // Ollama API 응답 형식: { message: { content: "..." } }
+    if (data.message && data.message.content) {
+      return data.message.content;
+    }
+    
+    throw new Error("Invalid response format from LLM");
+  } catch (error) {
+    console.error("LLM API Error:", error);
+    throw error;
+  }
 };
 
 export const analyzeAndRefineText = async (
@@ -93,8 +135,11 @@ export const analyzeAndRefineText = async (
   }
   
   const imageInstruction = image 
-    ? "참고: 사용자가 UI 스크린샷이나 참고 이미지를 첨부했습니다. 문구 작성 시 이 이미지의 맥락(화면 구성, 디자인 요소, 분위기 등)을 반드시 고려하여 제안하세요." 
+    ? "참고: 사용자가 UI 스크린샷이나 참고 이미지를 첨부했습니다. (현재 이미지 분석은 지원되지 않으므로 텍스트 정보만 활용합니다.)" 
     : "";
+
+  const guideContent = processAttachments(guideAttachments);
+  const caseContent = processAttachments(caseAttachments);
 
   const prompt = `
     [작업 요청]
@@ -109,65 +154,33 @@ export const analyzeAndRefineText = async (
 
     [참고할 커스텀 가이드라인 (최우선 준수)]
     ${customGuide ? `[직접 입력 가이드]: ${customGuide}` : ""}
-    ${guideAttachments.length > 0 ? `첨부된 가이드라인 파일 ${guideAttachments.length}개를 반드시 참고하세요.` : ""}
+    ${guideContent}
 
     [참고할 사례 학습 (Few-shot Examples)]
     ${caseStudies ? `[직접 입력 사례]: ${caseStudies}` : ""}
-    ${caseAttachments.length > 0 ? `첨부된 사례 학습 파일 ${caseAttachments.length}개를 반드시 참고하세요.` : ""}
+    ${caseContent}
 
     [출력 요구사항]
-    JSON 형식으로 응답해주세요.
-    1. improvedText: 제안하는 핵심 문구 (가장 좋은 1개 안)
-    2. reasoning: 왜 이 문구가 좋은지, 혹은 기존 문구가 왜 개선되었는지 설명 (한국어)
-    3. alternatives: 상황에 따라 쓸 수 있는 5가지 다른 대안들 (다양한 뉘앙스 제안)
+    반드시 아래 JSON 형식으로만 응답해주세요. 다른 설명 없이 JSON만 출력하세요.
+    {
+      "improvedText": "제안하는 핵심 문구 (가장 좋은 1개 안)",
+      "reasoning": "왜 이 문구가 좋은지, 혹은 기존 문구가 왜 개선되었는지 설명 (한국어)",
+      "alternatives": ["대안1", "대안2", "대안3", "대안4", "대안5"]
+    }
   `;
 
-  // Construct parts order:
-  // 1. Image Input (if any)
-  // 2. Guide Attachments (PDFs/Text Files)
-  // 3. Case Attachments (PDFs/Text Files)
-  // 4. Main Prompt
-  
-  const parts: any[] = [];
-  
-  if (image) {
-    parts.push({ inlineData: { mimeType: image.mimeType, data: image.data } });
-  }
-
-  // Add processed attachments
-  parts.push(...processAttachments(guideAttachments));
-  parts.push(...processAttachments(caseAttachments));
-
-  // Add text prompt
-  parts.push({ text: prompt });
-
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: { parts },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            improvedText: { type: Type.STRING },
-            reasoning: { type: Type.STRING },
-            alternatives: { 
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            }
-          },
-          required: ["improvedText", "reasoning", "alternatives"]
-        }
-      }
-    });
-
-    if (response.text) {
-      return JSON.parse(response.text) as AnalysisResult;
+    const responseText = await callLLM(prompt);
+    
+    // JSON 파싱 시도
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]) as AnalysisResult;
     }
-    throw new Error("No response text");
+    
+    throw new Error("No valid JSON found in response");
   } catch (error) {
-    console.error("Gemini Error:", error);
+    console.error("LLM Error:", error);
     throw error;
   }
 };
@@ -187,6 +200,9 @@ export const generateMoreAlternatives = async (
   const ctxDesc = getContextDescription(context);
   const elementDetail = element ? `(상세 요소: ${element})` : '';
   
+  const guideContent = processAttachments(guideAttachments);
+  const caseContent = processAttachments(caseAttachments);
+
   const prompt = `
     [추가 대안 생성 요청]
     사용자가 입력한 내용: "${inputText}"
@@ -195,47 +211,29 @@ export const generateMoreAlternatives = async (
 
     [커스텀 가이드]
     ${customGuide}
-    (첨부 파일 포함)
+    ${guideContent}
 
     [사례 학습]
     ${caseStudies}
-    (첨부 파일 포함)
+    ${caseContent}
 
     이미 제안된 다음 문구들을 제외하고, 새롭고 신선한 표현으로 3가지 추가 대안을 제시해주세요.
     [제외할 문구들]: ${existingAlternatives.join(", ")}
 
-    JSON 형식: { "newAlternatives": ["대안1", "대안2", "대안3"] }
+    반드시 아래 JSON 형식으로만 응답해주세요:
+    { "newAlternatives": ["대안1", "대안2", "대안3"] }
   `;
 
-  const parts: any[] = [];
-  parts.push(...processAttachments(guideAttachments));
-  parts.push(...processAttachments(caseAttachments));
-  parts.push({ text: prompt });
-
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: { parts },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            newAlternatives: { 
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            }
-          }
-        }
-      }
-    });
-
-    if (response.text) {
-      return JSON.parse(response.text).newAlternatives as string[];
+    const responseText = await callLLM(prompt);
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return parsed.newAlternatives as string[];
     }
     return [];
   } catch (error) {
-    console.error("Gemini More Alternatives Error:", error);
+    console.error("LLM More Alternatives Error:", error);
     return [];
   }
 };
@@ -250,6 +248,8 @@ export const compareOptions = async (
 ): Promise<CompareResult> => {
     
     const formattedOptions = options.map((opt, idx) => `[옵션 ${idx + 1}] "${opt}"`).join("\n");
+    const guideContent = processAttachments(guideAttachments);
+    const caseContent = processAttachments(caseAttachments);
 
     const prompt = `
     [결정 지원 요청]
@@ -261,43 +261,28 @@ export const compareOptions = async (
 
     [참고 가이드]
     ${customGuide}
-    ${guideAttachments.length > 0 ? "(첨부된 가이드 문서 포함)" : ""}
+    ${guideContent}
 
     [참고 사례]
     ${caseStudies}
-    ${caseAttachments.length > 0 ? "(첨부된 사례 문서 포함)" : ""}
+    ${caseContent}
 
     어느 쪽이 더 명확하고, 사용자 친화적이며, 적절한가요?
-    JSON 형식으로 답하세요.
-    winner 필드에는 "Option 1", "Option 2"와 같이 1등 옵션의 번호를 적어주세요. 만약 완전히 동일하다면 "Equal"이라고 적어주세요.
+    반드시 아래 JSON 형식으로만 응답해주세요:
+    {
+      "winner": "Option 1 또는 Option 2 등 (완전히 동일하면 Equal)",
+      "reason": "선택 이유 설명",
+      "suggestion": "추가 제안사항"
+    }
     `;
 
-    const parts: any[] = [];
-    parts.push(...processAttachments(guideAttachments));
-    parts.push(...processAttachments(caseAttachments));
-    parts.push({ text: prompt });
-
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: { parts },
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        winner: { type: Type.STRING },
-                        reason: { type: Type.STRING },
-                        suggestion: { type: Type.STRING }
-                    }
-                }
-            }
-        });
-        
-        if (response.text) {
-            return JSON.parse(response.text) as CompareResult;
+        const responseText = await callLLM(prompt);
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            return JSON.parse(jsonMatch[0]) as CompareResult;
         }
-        throw new Error("No response text");
+        throw new Error("No valid JSON found in response");
     } catch (error) {
         console.error("Comparison Error:", error);
         throw error;
@@ -311,9 +296,11 @@ export const getConceptExplanation = async (topic: string): Promise<string> => {
     마크다운 형식으로 출력해주세요.
     `;
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-    });
-    return response.text || "설명을 가져올 수 없습니다.";
+    try {
+        const responseText = await callLLM(prompt);
+        return responseText || "설명을 가져올 수 없습니다.";
+    } catch (error) {
+        console.error("Concept Explanation Error:", error);
+        return "설명을 가져오는 중 오류가 발생했습니다.";
+    }
 };

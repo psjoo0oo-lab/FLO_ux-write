@@ -9,6 +9,12 @@ UX Writing 도우미 - AI 기반 UX 라이팅 제안, 검토, 의사결정 지�
 - **결정하기**: 여러 문구 옵션 비교 및 추천
 - **관리자 설정**: 전사 가이드라인 및 사례 관리
 
+## 기술 스택
+
+- **Frontend**: React + TypeScript + Vite
+- **AI Model**: 사내 GPT OSS 120b (`http://10.1.22.181:11434/api/chat`)
+- **Styling**: Vanilla CSS
+
 ## 실행 방법
 
 **필수 요구사항:** Node.js
@@ -17,12 +23,11 @@ UX Writing 도우미 - AI 기반 UX 라이팅 제안, 검토, 의사결정 지�
 # 1. 의존성 설치
 npm install
 
-# 2. 환경 변수 설정
-# .env.local 파일에 GEMINI_API_KEY 설정
-
-# 3. 개발 서버 실행
+# 2. 개발 서버 실행
 npm run dev
 ```
+
+서버는 `http://localhost:3000`에서 실행됩니다.
 
 ## 관리자 접근
 

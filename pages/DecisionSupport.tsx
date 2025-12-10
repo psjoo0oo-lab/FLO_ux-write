@@ -1,13 +1,13 @@
 import React, { useState, useContext } from 'react';
 import { WritingContext, CompareResult } from '../types';
-import { compareOptions } from '../services/geminiService';
+import { compareOptions } from '../services/llmService';
 import { GuideContext, FormStateContext } from '../App';
 import { ArrowRightLeft, Trophy, AlertTriangle, Plus, X } from 'lucide-react';
 
 const DecisionSupport: React.FC = () => {
   const { customGuide, caseStudies, guideAttachments, caseAttachments } = useContext(GuideContext);
   const { decisionState, setDecisionState } = useContext(FormStateContext);
-  
+
   const [loading, setLoading] = useState(false);
 
   const handleAddOption = () => {
@@ -18,7 +18,7 @@ const DecisionSupport: React.FC = () => {
   };
 
   const handleRemoveOption = (index: number) => {
-    if (decisionState.options.length <= 2) return; 
+    if (decisionState.options.length <= 2) return;
     setDecisionState(prev => ({
       ...prev,
       options: prev.options.filter((_, i) => i !== index)
@@ -43,12 +43,12 @@ const DecisionSupport: React.FC = () => {
 
     setLoading(true);
     setDecisionState(prev => ({ ...prev, result: null }));
-    
+
     try {
       const res = await compareOptions(
-        validOptions, 
-        WritingContext.PRODUCT_UI, 
-        customGuide, 
+        validOptions,
+        WritingContext.PRODUCT_UI,
+        customGuide,
         caseStudies,
         guideAttachments,
         caseAttachments
@@ -73,21 +73,20 @@ const DecisionSupport: React.FC = () => {
         <h2 className="text-2xl font-bold text-slate-900 mb-2">결정하기</h2>
         <p className="text-slate-500 break-keep">고민되는 여러 문구 옵션을 비교 분석하여 최적의 선택을 도와드릴게요</p>
         <div className="mt-4 inline-flex items-center gap-2 bg-yellow-50 text-yellow-800 px-4 py-2 rounded-full text-xs md:text-sm font-medium border border-yellow-200 max-w-full overflow-hidden text-ellipsis whitespace-nowrap">
-           <AlertTriangle className="w-4 h-4 shrink-0" />
-           <span className="truncate">예시: "확인" vs "확인하기" / "취소" vs "닫기"</span>
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span className="truncate">예시: "확인" vs "확인하기" / "취소" vs "닫기"</span>
         </div>
       </header>
 
       <div className="flex-1 overflow-y-visible lg:overflow-y-auto px-2 md:px-4 pb-32 lg:pb-24">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           {decisionState.options.map((opt, index) => (
-            <div 
-              key={index} 
-              className={`relative h-32 md:h-40 bg-white rounded-xl border-2 transition-all group flex flex-col ${
-                isWinner(index) 
-                  ? 'border-green-500 shadow-lg ring-4 ring-green-50 z-10' 
+            <div
+              key={index}
+              className={`relative h-32 md:h-40 bg-white rounded-xl border-2 transition-all group flex flex-col ${isWinner(index)
+                  ? 'border-green-500 shadow-lg ring-4 ring-green-50 z-10'
                   : 'border-slate-200 hover:border-slate-300'
-              }`}
+                }`}
             >
               <div className="absolute top-3 left-4 right-4 flex justify-between items-center z-10 pointer-events-none">
                 <span className={`font-bold text-xs ${isWinner(index) ? 'text-green-600' : 'text-slate-400'}`}>
@@ -96,7 +95,7 @@ const DecisionSupport: React.FC = () => {
                 <div className="flex items-center gap-2 pointer-events-auto">
                   {isWinner(index) && <Trophy className="w-4 h-4 text-green-500" />}
                   {decisionState.options.length > 2 && (
-                    <button 
+                    <button
                       onClick={() => handleRemoveOption(index)}
                       className="text-slate-300 hover:text-red-500 transition p-1"
                       title="옵션 삭제"
@@ -134,34 +133,34 @@ const DecisionSupport: React.FC = () => {
 
         {/* Result Area */}
         {decisionState.result && (
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 md:p-8 animate-fade-in-up mb-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 md:p-8 animate-fade-in-up mb-4">
             <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100">
-                <div className="bg-green-100 p-3 rounded-full shrink-0">
-                    <Trophy className="w-6 h-6 md:w-8 md:h-8 text-green-600" />
-                </div>
-                <div>
-                    <h3 className="text-lg md:text-xl font-bold text-slate-900 leading-snug">
-                        {decisionState.result.winner === 'Equal' ? '모든 옵션이 비슷하게 적절합니다' : `더 나은 선택은 [${decisionState.result.winner}] 입니다`}
-                    </h3>
-                    <p className="text-slate-500 text-sm">AI 기반 UX 적합성 판단 결과</p>
-                </div>
+              <div className="bg-green-100 p-3 rounded-full shrink-0">
+                <Trophy className="w-6 h-6 md:w-8 md:h-8 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-lg md:text-xl font-bold text-slate-900 leading-snug">
+                  {decisionState.result.winner === 'Equal' ? '모든 옵션이 비슷하게 적절합니다' : `더 나은 선택은 [${decisionState.result.winner}] 입니다`}
+                </h3>
+                <p className="text-slate-500 text-sm">AI 기반 UX 적합성 판단 결과</p>
+              </div>
             </div>
-            
+
             <div className="space-y-4">
-                <div>
-                    <h4 className="font-semibold text-slate-900 mb-2">판단 이유</h4>
-                    <p className="text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-lg text-sm md:text-base">
-                        {decisionState.result.reason}
-                    </p>
-                </div>
-                <div>
-                    <h4 className="font-semibold text-slate-900 mb-2">추가 제안</h4>
-                    <p className="text-slate-600 text-sm md:text-base">
-                        {decisionState.result.suggestion}
-                    </p>
-                </div>
+              <div>
+                <h4 className="font-semibold text-slate-900 mb-2">판단 이유</h4>
+                <p className="text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-lg text-sm md:text-base">
+                  {decisionState.result.reason}
+                </p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-slate-900 mb-2">추가 제안</h4>
+                <p className="text-slate-600 text-sm md:text-base">
+                  {decisionState.result.suggestion}
+                </p>
+              </div>
             </div>
-            </div>
+          </div>
         )}
       </div>
 
@@ -173,15 +172,15 @@ const DecisionSupport: React.FC = () => {
           className="pointer-events-auto bg-slate-900 text-white w-full md:w-auto px-10 py-3.5 rounded-full font-bold text-lg hover:bg-slate-800 disabled:opacity-50 transition-all flex justify-center items-center gap-2 shadow-xl shadow-slate-300 transform active:scale-95"
         >
           {loading ? (
-             <span className="flex items-center gap-2">
-                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                 판단 중...
-             </span>
+            <span className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              판단 중...
+            </span>
           ) : (
-             <>
-                <ArrowRightLeft className="w-5 h-5" /> 
-                비교하고 결정하기
-             </>
+            <>
+              <ArrowRightLeft className="w-5 h-5" />
+              비교하고 결정하기
+            </>
           )}
         </button>
       </div>

@@ -2,7 +2,7 @@ import React, { useState, useContext, useRef } from 'react';
 import { WritingContext, ToneLevel, AnalysisResult, WritingMode } from '../types';
 import ToneSlider from '../components/ToneSlider';
 import ResultCard from '../components/ResultCard';
-import { analyzeAndRefineText, generateMoreAlternatives } from '../services/geminiService';
+import { analyzeAndRefineText, generateMoreAlternatives } from '../services/llmService';
 import { GuideContext, FormStateContext } from '../App';
 import { Sparkles, AlertCircle, MonitorSmartphone, Megaphone, Palette, Briefcase, Image as ImageIcon, X } from 'lucide-react';
 
@@ -11,10 +11,10 @@ interface WritingAssistantProps {
 }
 
 const CONTEXT_ELEMENTS: Record<WritingContext, string[]> = {
-    [WritingContext.PRODUCT_UI]: ['타이틀', '서브텍스트', '버튼명', '토스트 메시지', '에러 메시지', '툴팁', '플레이스홀더', '라벨/태그'],
-    [WritingContext.MARKETING]: ['푸시 알림 타이틀', '푸시 알림 본문', '배너 타이틀', '배너 서브텍스트', '이벤트/프로모션 문구', '광고 슬로건'],
-    [WritingContext.CREATIVE]: ['온보딩 타이틀', '온보딩 설명', '엠티 스테이트(빈화면)', '브랜드 슬로건', '로딩 문구'],
-    [WritingContext.BUSINESS]: ['공지사항 제목', '정책/약관', '비즈니스 메일', 'FAQ 답변', '시스템 알림']
+  [WritingContext.PRODUCT_UI]: ['타이틀', '서브텍스트', '버튼명', '토스트 메시지', '에러 메시지', '툴팁', '플레이스홀더', '라벨/태그'],
+  [WritingContext.MARKETING]: ['푸시 알림 타이틀', '푸시 알림 본문', '배너 타이틀', '배너 서브텍스트', '이벤트/프로모션 문구', '광고 슬로건'],
+  [WritingContext.CREATIVE]: ['온보딩 타이틀', '온보딩 설명', '엠티 스테이트(빈화면)', '브랜드 슬로건', '로딩 문구'],
+  [WritingContext.BUSINESS]: ['공지사항 제목', '정책/약관', '비즈니스 메일', 'FAQ 답변', '시스템 알림']
 };
 
 const PLACEHOLDERS: Record<WritingMode, Record<WritingContext, string>> = {
@@ -41,7 +41,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
   const setPageState = mode === WritingMode.CREATE ? setCreateState : setRefineState;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [moreLoading, setMoreLoading] = useState(false);
@@ -53,11 +53,11 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
   };
 
   const handleContextChange = (newContext: WritingContext) => {
-      // If context changes, reset the element selection unless it's the same context
-      updateState({ 
-          context: newContext,
-          element: '' // Reset element on context switch
-      });
+    // If context changes, reset the element selection unless it's the same context
+    updateState({
+      context: newContext,
+      element: '' // Reset element on context switch
+    });
   };
 
   const processFile = (file: File) => {
@@ -65,7 +65,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
       alert("이미지 파일만 업로드 가능합니다.");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) { 
+    if (file.size > 5 * 1024 * 1024) {
       alert("이미지 크기는 5MB 이하여야 합니다.");
       return;
     }
@@ -90,12 +90,12 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData.items;
     for (let i = 0; i < items.length; i++) {
-        if (items[i].type.startsWith('image/')) {
-            e.preventDefault();
-            const file = items[i].getAsFile();
-            if (file) processFile(file);
-            return;
-        }
+      if (items[i].type.startsWith('image/')) {
+        e.preventDefault();
+        const file = items[i].getAsFile();
+        if (file) processFile(file);
+        return;
+      }
     }
   };
 
@@ -137,16 +137,16 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
 
   const handleAnalyze = async () => {
     const text = pageState.inputText.trim();
-    
+
     // Validation: Check if text is too short or just symbols
     if ((!text || text.length < 2) && !pageState.imageFile) {
-        updateState({ isInvalidInput: true });
-        return;
+      updateState({ isInvalidInput: true });
+      return;
     }
-    
+
     // Reset invalid state if valid
     updateState({ isInvalidInput: false });
-    
+
     setLoading(true);
     setError(null);
     updateState({ result: null, getMoreCount: 0 });
@@ -156,18 +156,18 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
       if (pageState.imageFile) {
         const base64 = await fileToBase64(pageState.imageFile);
         imageData = {
-            data: base64.split(',')[1], 
-            mimeType: pageState.imageFile.type
+          data: base64.split(',')[1],
+          mimeType: pageState.imageFile.type
         };
       }
 
       const data = await analyzeAndRefineText(
-        pageState.inputText, 
-        pageState.context, 
-        pageState.tone, 
-        customGuide, 
-        caseStudies, 
-        mode, 
+        pageState.inputText,
+        pageState.context,
+        pageState.tone,
+        customGuide,
+        caseStudies,
+        mode,
         imageData,
         pageState.element,
         guideAttachments, // Pass attachments
@@ -189,11 +189,11 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
     try {
       const existingAlternatives = [...pageState.result.alternatives, pageState.result.improvedText];
       const newAlternatives = await generateMoreAlternatives(
-        pageState.inputText, 
-        pageState.context, 
-        pageState.tone, 
-        customGuide, 
-        caseStudies, 
+        pageState.inputText,
+        pageState.context,
+        pageState.tone,
+        customGuide,
+        caseStudies,
         existingAlternatives,
         pageState.element,
         guideAttachments,
@@ -239,27 +239,26 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
 
       {/* Main Layout: Stack on Mobile, Row on Desktop */}
       <div className="flex flex-col lg:flex-row gap-6 h-auto lg:h-full lg:min-h-0">
-        
+
         {/* Left Input Column */}
         <div className="flex-1 flex flex-col gap-6 bg-white p-6 rounded-xl shadow-sm border border-slate-200 overflow-visible lg:overflow-y-auto">
-          
+
           {/* STEP 1 */}
           <section>
             <div className="flex items-center gap-2 mb-3">
               <span className="bg-slate-900 text-white text-xs font-bold px-2 py-0.5 rounded-full">STEP 1</span>
               <h3 className="font-bold text-slate-800">어디에 쓰이는 문구인가요?</h3>
             </div>
-            
+
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
               {Object.values(WritingContext).map((ctx) => (
                 <button
                   key={ctx}
                   onClick={() => handleContextChange(ctx)}
-                  className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all text-sm font-medium ${
-                    pageState.context === ctx
+                  className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all text-sm font-medium ${pageState.context === ctx
                       ? 'border-indigo-600 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600 shadow-sm'
                       : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700'
-                  }`}
+                    }`}
                 >
                   {getContextIcon(ctx)}
                   <span>
@@ -274,24 +273,23 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
 
             {/* Element Selection */}
             {pageState.context && (
-                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 animate-fade-in-down">
-                    <p className="text-xs text-slate-500 font-semibold mb-2 ml-1">상세 요소 선택 (선택사항)</p>
-                    <div className="flex flex-wrap gap-2">
-                        {CONTEXT_ELEMENTS[pageState.context].map((elem) => (
-                            <button
-                                key={elem}
-                                onClick={() => updateState({ element: pageState.element === elem ? '' : elem })}
-                                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                                    pageState.element === elem
-                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                        : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'
-                                }`}
-                            >
-                                {elem}
-                            </button>
-                        ))}
-                    </div>
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 animate-fade-in-down">
+                <p className="text-xs text-slate-500 font-semibold mb-2 ml-1">상세 요소 선택 (선택사항)</p>
+                <div className="flex flex-wrap gap-2">
+                  {CONTEXT_ELEMENTS[pageState.context].map((elem) => (
+                    <button
+                      key={elem}
+                      onClick={() => updateState({ element: pageState.element === elem ? '' : elem })}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${pageState.element === elem
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'
+                        }`}
+                    >
+                      {elem}
+                    </button>
+                  ))}
                 </div>
+              </div>
             )}
           </section>
 
@@ -305,50 +303,50 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
                 <h3 className="font-bold text-slate-800">고민 내용을 입력하세요</h3>
               </div>
               <div className="flex items-center gap-2 ml-auto">
-                    <input 
-                        type="file" 
-                        ref={fileInputRef}
-                        className="hidden" 
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                    />
-                    <button 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition whitespace-nowrap"
-                    >
-                        <ImageIcon className="w-3.5 h-3.5" />
-                        이미지 추가
-                    </button>
-                </div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition whitespace-nowrap"
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  이미지 추가
+                </button>
+              </div>
             </div>
 
             {/* Input Area */}
             <div className="flex-1 flex flex-col min-h-[200px] lg:min-h-0">
               {pageState.imagePreview && (
-                  <div className="mb-3 relative inline-block self-start">
-                    <img 
-                        src={pageState.imagePreview} 
-                        alt="Preview" 
-                        className="h-24 w-auto rounded-lg border border-slate-200 object-cover"
-                    />
-                    <button 
-                        onClick={handleRemoveImage}
-                        className="absolute -top-2 -right-2 bg-slate-900 text-white rounded-full p-1 hover:bg-red-500 transition shadow-sm"
-                        title="이미지 제거"
-                    >
-                        <X className="w-3 h-3" />
-                    </button>
-                  </div>
+                <div className="mb-3 relative inline-block self-start">
+                  <img
+                    src={pageState.imagePreview}
+                    alt="Preview"
+                    className="h-24 w-auto rounded-lg border border-slate-200 object-cover"
+                  />
+                  <button
+                    onClick={handleRemoveImage}
+                    className="absolute -top-2 -right-2 bg-slate-900 text-white rounded-full p-1 hover:bg-red-500 transition shadow-sm"
+                    title="이미지 제거"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
               )}
 
               <textarea
                 className={`w-full p-4 rounded-lg border focus:ring-2 resize-none text-base leading-relaxed flex-1 min-h-[120px] transition-all 
-                ${pageState.isInvalidInput 
-                    ? 'border-red-300 focus:border-red-500 focus:ring-red-200 bg-red-50/30' 
-                    : isDragging 
-                        ? 'border-indigo-500 ring-2 ring-indigo-200 bg-indigo-50/50'
-                        : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'
-                }`}
+                ${pageState.isInvalidInput
+                    ? 'border-red-300 focus:border-red-500 focus:ring-red-200 bg-red-50/30'
+                    : isDragging
+                      ? 'border-indigo-500 ring-2 ring-indigo-200 bg-indigo-50/50'
+                      : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500'
+                  }`}
                 placeholder={PLACEHOLDERS[mode][pageState.context]}
                 value={pageState.inputText}
                 onChange={(e) => updateState({ inputText: e.target.value, isInvalidInput: false })}
@@ -358,10 +356,10 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
                 onDrop={handleDrop}
               />
               {pageState.isInvalidInput && (
-                  <p className="text-red-500 text-xs mt-2 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      내용을 조금 더 구체적으로 작성해주세요.
-                  </p>
+                <p className="text-red-500 text-xs mt-2 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  내용을 조금 더 구체적으로 작성해주세요.
+                </p>
               )}
             </div>
 
@@ -392,21 +390,21 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
                 </>
               )}
             </button>
-            
+
             {error && (
-               <div className="mt-4 flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg text-sm">
-                  <AlertCircle className="w-4 h-4" />
-                  {error}
-               </div>
+              <div className="mt-4 flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg text-sm">
+                <AlertCircle className="w-4 h-4" />
+                {error}
+              </div>
             )}
           </section>
         </div>
 
         {/* Right Result Column */}
         <div className="w-full lg:w-1/2 lg:min-w-[320px] overflow-visible lg:overflow-y-auto">
-          <ResultCard 
-            result={pageState.result} 
-            loading={loading} 
+          <ResultCard
+            result={pageState.result}
+            loading={loading}
             onGetMore={handleGetMore}
             moreLoading={moreLoading}
             getMoreCount={pageState.getMoreCount}
