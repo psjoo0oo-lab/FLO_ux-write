@@ -1,20 +1,31 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Tone & FLO
 
-# Run and deploy your AI Studio app
+UX Writing 도우미 - AI 기반 UX 라이팅 제안, 검토, 의사결정 지원 서비스
 
-This contains everything you need to run your app locally.
+## 주요 기능
 
-View your app in AI Studio: https://ai.studio/apps/drive/1b4CLHslEvKtG7VdxV4bmYAxIHp6hggy5
+- **제안받기**: 상황에 맞는 UX 문구 제안
+- **검토하기**: 작성한 문구 분석 및 개선안 제공
+- **결정하기**: 여러 문구 옵션 비교 및 추천
+- **관리자 설정**: 전사 가이드라인 및 사례 관리
 
-## Run Locally
+## 실행 방법
 
-**Prerequisites:**  Node.js
+**필수 요구사항:** Node.js
 
+```bash
+# 1. 의존성 설치
+npm install
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+# 2. 환경 변수 설정
+# .env.local 파일에 GEMINI_API_KEY 설정
+
+# 3. 개발 서버 실행
+npm run dev
+```
+
+## 관리자 접근
+
+- **경로**: `/admin`
+- **비밀번호**: `2025PDtone&flo`
+- **기능**: 가이드라인 관리, 사용자 의견 확인
