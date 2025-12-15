@@ -228,6 +228,7 @@ FLO 프로덕트 라이팅 3대 원칙은 다음과 같다.
   2. 각 문장이 어떤 원칙/상황을 따른 것인지 한두 줄로 설명한다.
 - 과장된 혜택, 밈/유행어, 조건 숨기기, 사용자 탓, 부적절한 표현 등
   FLO 프로덕트 UX라이팅 지침과 배치되는 표현은 제안하지 않는다.
+- **이모지는 최대한 사용하지 않는다.** 특히 문장 끝에 붙이는 습관적인 이모지는 금지하며, 꼭 필요한 상황(예: 온보딩 환영 메시지 등 감성적인 표현이 필수적인 경우)에만 제한적으로 사용한다.
 
 사용자가 업로드한 커스텀 가이드라인(텍스트 및 PDF 문서)이 있다면 위 지침과 함께 참고하십시오.
 `;
@@ -329,7 +330,7 @@ const callGeminiAPI = async (userMessage: string): Promise<string> => {
 };
 
 // LLM API 호출 헬퍼 함수 (사내 모델 우선, 실패 시 Gemini fallback)
-const callLLM = async (userMessage: string): Promise<string> => {
+const callLLM = async (userMessage: string): Promise<{ content: string; model: string }> => {
   // 1차 시도: 사내 GPT OSS 120b 모델
   try {
     const response = await fetch(LLM_API_URL, {
@@ -363,7 +364,7 @@ const callLLM = async (userMessage: string): Promise<string> => {
     // Ollama API 응답 형식: { message: { content: "..." } }
     if (data.message && data.message.content) {
       console.log('✅ Using internal GPT OSS 120b model');
-      return data.message.content;
+      return { content: data.message.content, model: 'Internal GPT OSS 120b' };
     }
 
     throw new Error("Invalid response format from internal LLM");
@@ -373,8 +374,8 @@ const callLLM = async (userMessage: string): Promise<string> => {
     // 2차 시도: Gemini 1.5 Flash API
     try {
       const geminiResponse = await callGeminiAPI(userMessage);
-      console.log('✅ Using Gemini 1.5 Flash API (fallback)');
-      return geminiResponse;
+      console.log('✅ Using Gemini API (fallback)');
+      return { content: geminiResponse, model: 'Gemini 1.5 Flash (보조모델 사용중)' };
     } catch (geminiError) {
       console.error('❌ Both internal LLM and Gemini API failed');
       const geminiMsg = geminiError instanceof Error ? geminiError.message : String(geminiError);
@@ -485,10 +486,20 @@ export const analyzeAndRefineText = async (
   `;
 
   try {
-    const responseText = await callLLM(prompt);
+    console.log('Sending prompt to LLM:', prompt);
 
-    // 안전한 JSON 파싱 시도
-    const result = safeJsonParse<AnalysisResult>(responseText);
+    const { content: rawResponse, model } = await callLLM(prompt);
+    console.log('Raw response from LLM:', rawResponse);
+
+    // 1. JSON 추출 시도 (가장 일반적인 경우)
+    let result = safeJsonParse<AnalysisResult>(rawResponse);
+
+    if (!result) {
+      throw new Error("AI 응답을 분석할 수 없습니다.");
+    }
+
+    // 모델명 추가
+    result.usedModel = model;
 
     if (result && result.improvedText) {
       return result;
@@ -542,13 +553,11 @@ export const generateMoreAlternatives = async (
   `;
 
   try {
-    const responseText = await callLLM(prompt);
+    const { content: rawResponse, model } = await callLLM(prompt);
+    const parsedResult = safeJsonParse<{ newAlternatives: string[] }>(rawResponse);
 
-    // 안전한 JSON 파싱 시도
-    const result = safeJsonParse<{ newAlternatives: string[] }>(responseText);
-
-    if (result && Array.isArray(result.newAlternatives)) {
-      return result.newAlternatives;
+    if (parsedResult && Array.isArray(parsedResult.newAlternatives)) {
+      return parsedResult.newAlternatives;
     }
 
     return [];
@@ -597,13 +606,17 @@ export const compareOptions = async (
     `;
 
   try {
-    const responseText = await callLLM(prompt);
+    const { content: rawResponse, model } = await callLLM(prompt);
+    const data = safeJsonParse<CompareResult>(rawResponse);
 
-    // 안전한 JSON 파싱 시도
-    const result = safeJsonParse<CompareResult>(responseText);
+    if (!data) {
+      throw new Error("AI 응답을 분석할 수 없습니다.");
+    }
 
-    if (result && result.winner) {
-      return result;
+    data.usedModel = model;
+
+    if (data && data.winner) {
+      return data;
     }
 
     throw new Error("AI가 올바른 응답을 주지 못했습니다.");
@@ -621,8 +634,8 @@ export const getConceptExplanation = async (topic: string): Promise<string> => {
     `;
 
   try {
-    const responseText = await callLLM(prompt);
-    return responseText || "설명을 가져올 수 없습니다.";
+    const { content } = await callLLM(prompt);
+    return content || "설명을 가져올 수 없습니다.";
   } catch (error) {
     console.error("Concept Explanation Error:", error);
     return "설명을 가져오는 중 오류가 발생했습니다.";

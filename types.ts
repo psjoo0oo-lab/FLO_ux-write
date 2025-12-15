@@ -44,12 +44,14 @@ export interface AnalysisResult {
   reasoning: string;
   alternatives: string[];
   score?: number;
+  usedModel?: string;
 }
 
 export interface CompareResult {
   winner: string; // Changed from fixed enum to string to support "Option N"
   reason: string;
   suggestion: string;
+  usedModel?: string;
 }
 
 export interface UserFeedback {

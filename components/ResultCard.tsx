@@ -1,6 +1,6 @@
 import React from 'react';
 import { AnalysisResult, WritingMode } from '../types';
-import { Copy, RefreshCw, ThumbsUp, Sparkles, PlusCircle, Check, Lightbulb, AlertCircle } from 'lucide-react';
+import { Copy, RefreshCw, ThumbsUp, Sparkles, PlusCircle, Check, Lightbulb, AlertCircle, Bot } from 'lucide-react';
 
 interface ResultCardProps {
   result: AnalysisResult | null;
@@ -12,11 +12,11 @@ interface ResultCardProps {
   mode?: WritingMode;
 }
 
-const ResultCard: React.FC<ResultCardProps> = ({ 
-  result, 
-  loading, 
-  onGetMore, 
-  moreLoading = false, 
+const ResultCard: React.FC<ResultCardProps> = ({
+  result,
+  loading,
+  onGetMore,
+  moreLoading = false,
   getMoreCount = 0,
   isInvalidInput = false,
   mode
@@ -54,20 +54,20 @@ const ResultCard: React.FC<ResultCardProps> = ({
         </p>
 
         <div className="w-full bg-slate-50 rounded-lg p-5 text-left border border-slate-100 space-y-4">
-            <div>
-                <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full mb-1 inline-block">Bad</span>
-                <p className="text-slate-600 text-sm pl-1">
-                    {mode === WritingMode.CREATE ? '"오류", "버튼", "."' : '"취소", "확인", "."'}
-                </p>
-            </div>
-            <div className="border-t border-slate-200 pt-3">
-                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full mb-1 inline-block">Good</span>
-                 <p className="text-slate-800 font-medium text-sm pl-1">
-                    {mode === WritingMode.CREATE 
-                        ? '"로그인 실패 시 비밀번호 불일치를 알리는 에러 메시지"' 
-                        : '"정말 탈퇴하시겠습니까? 탈퇴 후 정보는 복구되지 않습니다."'}
-                </p>
-            </div>
+          <div>
+            <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full mb-1 inline-block">Bad</span>
+            <p className="text-slate-600 text-sm pl-1">
+              {mode === WritingMode.CREATE ? '"오류", "버튼", "."' : '"취소", "확인", "."'}
+            </p>
+          </div>
+          <div className="border-t border-slate-200 pt-3">
+            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full mb-1 inline-block">Good</span>
+            <p className="text-slate-800 font-medium text-sm pl-1">
+              {mode === WritingMode.CREATE
+                ? '"로그인 실패 시 비밀번호 불일치를 알리는 에러 메시지"'
+                : '"정말 탈퇴하시겠습니까? 탈퇴 후 정보는 복구되지 않습니다."'}
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -88,76 +88,83 @@ const ResultCard: React.FC<ResultCardProps> = ({
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full max-h-full">
       <div className="p-6 border-b border-slate-100 bg-indigo-50/50">
         <div className="flex justify-between items-start mb-4">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                AI 추천 문구
-            </span>
-            <button 
-                onClick={() => handleCopy(result.improvedText)}
-                className="text-slate-400 hover:text-indigo-600 transition flex items-center gap-1 text-xs font-medium"
-            >
-                {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                {copied ? "복사됨" : "복사"}
-            </button>
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+            AI 추천 문구
+          </span>
+          <button
+            onClick={() => handleCopy(result.improvedText)}
+            className="text-slate-400 hover:text-indigo-600 transition flex items-center gap-1 text-xs font-medium"
+          >
+            {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+            {copied ? "복사됨" : "복사"}
+          </button>
         </div>
         <p className="text-xl font-bold text-slate-900 leading-relaxed break-keep">
-            {result.improvedText}
+          {result.improvedText}
         </p>
       </div>
 
       <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-6">
         <div>
-            <h4 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
-                <ThumbsUp className="w-4 h-4 text-slate-500" />
-                선정 이유
-            </h4>
-            <div className="bg-slate-50 rounded-lg p-4 text-sm text-slate-700 leading-relaxed border border-slate-100">
-                {result.reasoning}
-            </div>
+          <h4 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+            <ThumbsUp className="w-4 h-4 text-slate-500" />
+            선정 이유
+          </h4>
+          <div className="bg-slate-50 rounded-lg p-4 text-sm text-slate-700 leading-relaxed border border-slate-100">
+            {result.reasoning}
+          </div>
         </div>
 
         <div>
-            <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4 text-slate-500" />
-                    다른 제안
-                </h4>
-                <span className="text-xs text-slate-400 font-medium">{result.alternatives.length}개 제안</span>
-            </div>
-            
-            <ul className="space-y-2">
-                {result.alternatives.map((alt, idx) => (
-                    <li key={idx} className="group flex items-start justify-between p-3 rounded-lg border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50 transition-colors">
-                        <span className="text-sm text-slate-700 leading-relaxed break-keep pr-2">{alt}</span>
-                        <button 
-                            onClick={() => handleCopy(alt)}
-                            className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-indigo-600 p-1"
-                            title="복사"
-                        >
-                            <Copy className="w-3 h-3" />
-                        </button>
-                    </li>
-                ))}
-            </ul>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 text-slate-500" />
+              다른 제안
+            </h4>
+            <span className="text-xs text-slate-400 font-medium">{result.alternatives.length}개 제안</span>
+          </div>
 
-            {onGetMore && getMoreCount < 3 && (
+          <ul className="space-y-2">
+            {result.alternatives.map((alt, idx) => (
+              <li key={idx} className="group flex items-start justify-between p-3 rounded-lg border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50 transition-colors">
+                <span className="text-sm text-slate-700 leading-relaxed break-keep pr-2">{alt}</span>
                 <button
-                    onClick={onGetMore}
-                    disabled={moreLoading}
-                    className="w-full mt-4 py-3 rounded-lg border border-dashed border-indigo-300 text-indigo-600 font-medium text-sm hover:bg-indigo-50 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                  onClick={() => handleCopy(alt)}
+                  className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-indigo-600 p-1"
+                  title="복사"
                 >
-                    {moreLoading ? (
-                        <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                        <PlusCircle className="w-4 h-4" />
-                    )}
-                    제안 더 받기 ({getMoreCount}/3)
+                  <Copy className="w-3 h-3" />
                 </button>
-            )}
-             {getMoreCount >= 3 && (
-                <p className="text-center text-xs text-slate-400 mt-4">
-                    추가 제안 횟수를 모두 사용했습니다.
-                </p>
-            )}
+              </li>
+            ))}
+          </ul>
+
+          {onGetMore && getMoreCount < 3 && (
+            <button
+              onClick={onGetMore}
+              disabled={moreLoading}
+              className="w-full mt-4 py-3 rounded-lg border border-dashed border-indigo-300 text-indigo-600 font-medium text-sm hover:bg-indigo-50 transition flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {moreLoading ? (
+                <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <PlusCircle className="w-4 h-4" />
+              )}
+              제안 더 받기 ({getMoreCount}/3)
+            </button>
+          )}
+          {getMoreCount >= 3 && (
+            <p className="text-center text-xs text-slate-400 mt-4">
+              추가 제안 횟수를 모두 사용했습니다.
+            </p>
+          )}
+
+          {result.usedModel && (
+            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-end gap-1.5 text-[10px] text-slate-400">
+              <Bot className="w-3 h-3" />
+              <span>답변 적용 모델: <span className="font-semibold">{result.usedModel}</span></span>
+            </div>
+          )}
         </div>
       </div>
     </div>
