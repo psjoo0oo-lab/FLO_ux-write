@@ -179,7 +179,7 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
       console.error(err);
       const errorMessage = err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
       // 상세 에러를 UI에 표시하여 원인 파악
-      setError(`${errorMessage}\n(잠시 후 다시 시도하거나 관리자에게 문의하세요.)`);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
