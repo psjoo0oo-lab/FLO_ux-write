@@ -1,29 +1,5 @@
+import React, { useState, useContext, useRef } from 'react';
 import ErrorDisplay from '../components/ErrorDisplay';
-
-// ... (existing imports)
-
-// ...
-
-{/* Right Result Column */ }
-<div className="w-full lg:w-1/2 lg:min-w-[320px] overflow-visible lg:overflow-y-auto">
-  {error ? (
-    <ErrorDisplay
-      message={error}
-      onRetry={handleAnalyze}
-      className="h-full border-none shadow-none bg-slate-50"
-    />
-  ) : (
-    <ResultCard
-      result={pageState.result}
-      loading={loading}
-      onGetMore={handleGetMore}
-      moreLoading={moreLoading}
-      getMoreCount={pageState.getMoreCount}
-      isInvalidInput={pageState.isInvalidInput}
-      mode={mode}
-    />
-  )}
-</div>
 import { WritingContext, ToneLevel, AnalysisResult, WritingMode } from '../types';
 import ToneSlider from '../components/ToneSlider';
 import ResultCard from '../components/ResultCard';
