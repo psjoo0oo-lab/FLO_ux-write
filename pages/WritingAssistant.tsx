@@ -1,4 +1,29 @@
-import React, { useState, useContext, useRef } from 'react';
+import ErrorDisplay from '../components/ErrorDisplay';
+
+// ... (existing imports)
+
+// ...
+
+{/* Right Result Column */ }
+<div className="w-full lg:w-1/2 lg:min-w-[320px] overflow-visible lg:overflow-y-auto">
+  {error ? (
+    <ErrorDisplay
+      message={error}
+      onRetry={handleAnalyze}
+      className="h-full border-none shadow-none bg-slate-50"
+    />
+  ) : (
+    <ResultCard
+      result={pageState.result}
+      loading={loading}
+      onGetMore={handleGetMore}
+      moreLoading={moreLoading}
+      getMoreCount={pageState.getMoreCount}
+      isInvalidInput={pageState.isInvalidInput}
+      mode={mode}
+    />
+  )}
+</div>
 import { WritingContext, ToneLevel, AnalysisResult, WritingMode } from '../types';
 import ToneSlider from '../components/ToneSlider';
 import ResultCard from '../components/ResultCard';
@@ -256,8 +281,8 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
                   key={ctx}
                   onClick={() => handleContextChange(ctx)}
                   className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all text-sm font-medium ${pageState.context === ctx
-                      ? 'border-indigo-600 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600 shadow-sm'
-                      : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700'
+                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600 shadow-sm'
+                    : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700'
                     }`}
                 >
                   {getContextIcon(ctx)}
@@ -281,8 +306,8 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
                       key={elem}
                       onClick={() => updateState({ element: pageState.element === elem ? '' : elem })}
                       className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${pageState.element === elem
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                          : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'
                         }`}
                     >
                       {elem}
@@ -402,15 +427,23 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
 
         {/* Right Result Column */}
         <div className="w-full lg:w-1/2 lg:min-w-[320px] overflow-visible lg:overflow-y-auto">
-          <ResultCard
-            result={pageState.result}
-            loading={loading}
-            onGetMore={handleGetMore}
-            moreLoading={moreLoading}
-            getMoreCount={pageState.getMoreCount}
-            isInvalidInput={pageState.isInvalidInput}
-            mode={mode}
-          />
+          {error ? (
+            <ErrorDisplay
+              message={error}
+              onRetry={handleAnalyze}
+              className="h-full border-none shadow-none bg-slate-50"
+            />
+          ) : (
+            <ResultCard
+              result={pageState.result}
+              loading={loading}
+              onGetMore={handleGetMore}
+              moreLoading={moreLoading}
+              getMoreCount={pageState.getMoreCount}
+              isInvalidInput={pageState.isInvalidInput}
+              mode={mode}
+            />
+          )}
         </div>
       </div>
     </div>
