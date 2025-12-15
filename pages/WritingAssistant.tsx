@@ -395,9 +395,9 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
             </button>
 
             {error && (
-              <div className="mt-4 flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg text-sm">
-                <AlertCircle className="w-4 h-4" />
-                {error}
+              <div className="mt-4 flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg text-sm whitespace-pre-wrap">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{error}</span>
               </div>
             )}
           </section>

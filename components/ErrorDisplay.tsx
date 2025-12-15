@@ -24,7 +24,7 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
                 {title}
             </h3>
 
-            <p className="text-slate-500 mb-8 max-w-md break-keep leading-relaxed">
+            <p className="text-slate-500 mb-8 max-w-md break-keep leading-relaxed whitespace-pre-wrap">
                 {message}
             </p>
 
