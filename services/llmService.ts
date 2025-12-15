@@ -280,7 +280,8 @@ const processAttachments = (attachments: Attachment[]): string => {
 
 // Gemini API 설정 (fallback용)
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+// 모델명을 명확하게 지정 (또는 gemini-pro 사용 고려)
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
 
 // Gemini API 호출 함수
 const callGeminiAPI = async (userMessage: string): Promise<string> => {
@@ -308,7 +309,9 @@ const callGeminiAPI = async (userMessage: string): Promise<string> => {
     });
 
     if (!response.ok) {
-      throw new Error(`Gemini API Error: ${response.status} ${response.statusText}`);
+      // 에러 응답의 본문을 읽어서 더 자세한 원인 파악 시도
+      const errorBody = await response.text();
+      throw new Error(`Gemini API Error: ${response.status} ${response.statusText} - ${errorBody}`);
     }
 
     const data = await response.json();
