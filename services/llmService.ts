@@ -311,7 +311,7 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
     if (!response.ok) {
       // 405 Method Not Allowed 등 서버 응답 에러 처리
       console.error(`Internal LLM API Error: ${response.status} ${response.statusText}`);
-      throw new Error(`사내 모델에 연결할 수 없습니다. (오류 코드: ${response.status})\nVPN 연결 또는 사내 랜선 사용을 권장합니다.`);
+      throw new Error(`사내 모델 서버에 접속할 수 없습니다. (오류 코드: ${response.status})\nVPN 연결 상태나 사내 네트워크(랜선)를 확인해주세요.`);
     }
 
     const data = await response.json();
