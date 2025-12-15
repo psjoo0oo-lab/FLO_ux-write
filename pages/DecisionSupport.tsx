@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import { WritingContext, CompareResult } from '../types';
 import { compareOptions } from '../services/llmService';
 import { GuideContext, FormStateContext } from '../App';
-import { ArrowRightLeft, Trophy, AlertTriangle, Plus, X } from 'lucide-react';
+import { ArrowRightLeft, Trophy, AlertTriangle, Plus, X, Bot } from 'lucide-react';
 
 const DecisionSupport: React.FC = () => {
   const { customGuide, caseStudies, guideAttachments, caseAttachments } = useContext(GuideContext);
@@ -84,8 +84,8 @@ const DecisionSupport: React.FC = () => {
             <div
               key={index}
               className={`relative h-32 md:h-40 bg-white rounded-xl border-2 transition-all group flex flex-col ${isWinner(index)
-                  ? 'border-green-500 shadow-lg ring-4 ring-green-50 z-10'
-                  : 'border-slate-200 hover:border-slate-300'
+                ? 'border-green-500 shadow-lg ring-4 ring-green-50 z-10'
+                : 'border-slate-200 hover:border-slate-300'
                 }`}
             >
               <div className="absolute top-3 left-4 right-4 flex justify-between items-center z-10 pointer-events-none">
@@ -159,6 +159,13 @@ const DecisionSupport: React.FC = () => {
                   {decisionState.result.suggestion}
                 </p>
               </div>
+
+              {decisionState.result.usedModel && (
+                <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-end gap-1.5 text-[10px] text-slate-400">
+                  <Bot className="w-3 h-3" />
+                  <span>답변 적용 모델: <span className="font-semibold">{decisionState.result.usedModel}</span></span>
+                </div>
+              )}
             </div>
           </div>
         )}

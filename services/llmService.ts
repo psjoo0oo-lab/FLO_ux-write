@@ -229,6 +229,8 @@ FLO 프로덕트 라이팅 3대 원칙은 다음과 같다.
 - 과장된 혜택, 밈/유행어, 조건 숨기기, 사용자 탓, 부적절한 표현 등
   FLO 프로덕트 UX라이팅 지침과 배치되는 표현은 제안하지 않는다.
 - **이모지는 최대한 사용하지 않는다.** 특히 문장 끝에 붙이는 습관적인 이모지는 금지하며, 꼭 필요한 상황(예: 온보딩 환영 메시지 등 감성적인 표현이 필수적인 경우)에만 제한적으로 사용한다.
+- **가독성을 위해 줄글 대신 개조식(Bullet points)을 주로 사용한다.** 설명이 길어질 경우 문단을 나누어 시각적으로 분리한다.
+- 불필요한 **괄호( ) 사용을 지양**하고, 부연 설명은 자연스러운 문장이나 하위 불릿으로 쓴다.
 
 사용자가 업로드한 커스텀 가이드라인(텍스트 및 PDF 문서)이 있다면 위 지침과 함께 참고하십시오.
 `;
@@ -281,7 +283,7 @@ const processAttachments = (attachments: Attachment[]): string => {
 
 // Gemini API 설정 (fallback용)
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
-// 모델명을 명확하게 지정 (목록에 존재하는 확실한 모델 사용)
+// 모델명을 명확하게 지정 (사용량 제한 없는 gemini-flash-latest 사용)
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
 
 // Gemini API 호출 함수
@@ -333,6 +335,7 @@ const callGeminiAPI = async (userMessage: string): Promise<string> => {
 const callLLM = async (userMessage: string): Promise<{ content: string; model: string }> => {
   // 1차 시도: 사내 GPT OSS 120b 모델
   try {
+    console.log(`📡 Connecting to internal LLM... (${MODEL_NAME})`);
     const response = await fetch(LLM_API_URL, {
       method: 'POST',
       headers: {
@@ -352,7 +355,7 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
         ],
         stream: false
       }),
-      signal: AbortSignal.timeout(10000) // 10초 타임아웃
+      signal: AbortSignal.timeout(20000) // 20초 타임아웃 (사용자 요청)
     });
 
     if (!response.ok) {
@@ -371,11 +374,11 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
   } catch (error) {
     console.warn('⚠️ Internal LLM failed, falling back to Gemini API:', error);
 
-    // 2차 시도: Gemini 1.5 Flash API
+    // 2차 시도: Gemini API (Fallback)
     try {
       const geminiResponse = await callGeminiAPI(userMessage);
       console.log('✅ Using Gemini API (fallback)');
-      return { content: geminiResponse, model: 'Gemini 1.5 Flash (보조모델 사용중)' };
+      return { content: geminiResponse, model: 'Gemini Flash (보조모델 사용중)' };
     } catch (geminiError) {
       console.error('❌ Both internal LLM and Gemini API failed');
       const geminiMsg = geminiError instanceof Error ? geminiError.message : String(geminiError);
