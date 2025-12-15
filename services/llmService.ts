@@ -374,7 +374,8 @@ const callLLM = async (userMessage: string): Promise<string> => {
       return geminiResponse;
     } catch (geminiError) {
       console.error('❌ Both internal LLM and Gemini API failed');
-      throw new Error('모든 AI 서비스에 연결할 수 없습니다. VPN 연결을 확인하거나 Gemini API 키를 설정해주세요.');
+      const geminiMsg = geminiError instanceof Error ? geminiError.message : String(geminiError);
+      throw new Error(`모든 AI 서비스 연결 실패:\n[Gemini] ${geminiMsg}`);
     }
   }
 };
