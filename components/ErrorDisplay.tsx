@@ -6,13 +6,17 @@ interface ErrorDisplayProps {
     message?: string;
     onRetry?: () => void;
     className?: string;
+    linkText?: string;
+    linkUrl?: string;
 }
 
 const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
     title = "일시적인 오류가 발생했어요",
     message = "데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
     onRetry,
-    className = ""
+    className = "",
+    linkText,
+    linkUrl
 }) => {
     return (
         <div className={`flex flex-col items-center justify-center p-8 text-center bg-white rounded-2xl border border-slate-200 shadow-sm min-h-[300px] ${className}`}>
@@ -28,15 +32,29 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
                 {message}
             </p>
 
-            {onRetry && (
-                <button
-                    onClick={onRetry}
-                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-900 text-white font-medium hover:bg-slate-800 transition-colors active:scale-95"
-                >
-                    <RefreshCw className="w-4 h-4" />
-                    다시 시도하기
-                </button>
-            )}
+            <div className="flex flex-col items-center gap-3">
+                {linkText && linkUrl && (
+                    <a
+                        href={linkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:text-indigo-800 text-sm font-medium underline underline-offset-4 flex items-center gap-1 mb-2"
+                    >
+                        {linkText}
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </a>
+                )}
+
+                {onRetry && (
+                    <button
+                        onClick={onRetry}
+                        className="flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-900 text-white font-medium hover:bg-slate-800 transition-colors active:scale-95"
+                    >
+                        <RefreshCw className="w-4 h-4" />
+                        다시 시도하기
+                    </button>
+                )}
+            </div>
         </div>
     );
 };

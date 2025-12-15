@@ -1,11 +1,14 @@
-import React, { useState, useContext, useRef } from 'react';
+import React, { useState, useContext, useRef, useEffect } from 'react';
 import ErrorDisplay from '../components/ErrorDisplay';
-import { WritingContext, ToneLevel, AnalysisResult, WritingMode } from '../types';
 import ToneSlider from '../components/ToneSlider';
 import ResultCard from '../components/ResultCard';
 import { analyzeAndRefineText, generateMoreAlternatives } from '../services/llmService';
+import { WritingMode, ToneLevel, WritingContext } from '../types';
 import { GuideContext, FormStateContext } from '../App';
 import { Sparkles, AlertCircle, MonitorSmartphone, Megaphone, Palette, Briefcase, Image as ImageIcon, X } from 'lucide-react';
+
+// VPN Guide URL
+const VPN_GUIDE_URL = "https://music-flo.atlassian.net/servicedesk/customer/portal/1/article/371228948?src=-894079856";
 
 interface WritingAssistantProps {
   mode: WritingMode;
@@ -18,17 +21,14 @@ const CONTEXT_ELEMENTS: Record<WritingContext, string[]> = {
   [WritingContext.BUSINESS]: ['공지사항 제목', '정책/약관', '비즈니스 메일', 'FAQ 답변', '시스템 알림']
 };
 
-const PLACEHOLDERS: Record<WritingMode, Record<WritingContext, string>> = {
+const PLACEHOLDERS = {
   [WritingMode.CREATE]: {
-    [WritingContext.PRODUCT_UI]: "제안받고 싶은 상황이나 고민을 입력해주세요.\n\n예: 결제 완료 후 주문 내역 확인을 안내하는 토스트 메시지를 작성해줘.",
-    [WritingContext.MARKETING]: "제안받고 싶은 상황이나 고민을 입력해주세요.\n\n예: 여름 시즌 할인 이벤트를 알리는 매력적인 푸시 알림 문구를 작성해줘.",
-    [WritingContext.CREATIVE]: "제안받고 싶은 상황이나 고민을 입력해주세요.\n\n예: 앱을 처음 실행했을 때 사용자를 환영하는 온보딩 문구를 감성적으로 작성해줘.",
-    [WritingContext.BUSINESS]: "제안받고 싶은 상황이나 고민을 입력해주세요.\n\n예: 서비스 점검 시간을 알리는 공지사항 제목을 정중하게 작성해줘."
+    [WritingContext.PRODUCT_UI]: "예: '로그인 실패' 상황에서 사용자에게 비밀번호 재설정을 유도하는 모달 제목과 본문",
+    [WritingContext.MARKETING]: "예: 1020 세대를 타겟으로 한 여름 프로모션 배너 문구",
+    [WritingContext.CREATIVE]: "예: 장기 미접속 사용자에게 보내는 혜택 알림 푸시 메시지",
+    [WritingContext.BUSINESS]: "예: 서비스 점검 시간을 알리는 공지사항 제목을 정중하게 작성해줘."
   },
   [WritingMode.REFINE]: {
-    [WritingContext.PRODUCT_UI]: "작성해둔 초안을 입력해주세요.\n\n예: 결제가 완료되었습니다. 이용해주셔서 감사합니다. 주문 내역을 확인해주세요.",
-    [WritingContext.MARKETING]: "작성해둔 초안을 입력해주세요.\n\n예: 이번 여름 놓치면 후회할 초특가 할인! 지금 바로 확인해보세요.",
-    [WritingContext.CREATIVE]: "작성해둔 초안을 입력해주세요.\n\n예: 안녕하세요! 우리 앱에 오신 것을 환영합니다. 즐거운 시간 되세요.",
     [WritingContext.BUSINESS]: "작성해둔 초안을 입력해주세요.\n\n예: 10월 1일 점검이 예정되어 있으니 이용에 참고 바랍니다."
   }
 };
@@ -395,9 +395,22 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
             </button>
 
             {error && (
-              <div className="mt-4 flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg text-sm whitespace-pre-wrap">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{error}</span>
+              <div className="mt-4 flex flex-col gap-2 text-red-600 bg-red-50 p-3 rounded-lg text-sm whitespace-pre-wrap">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+                {(error.includes("VPN") || error.includes("사내 모델")) && (
+                  <a
+                    href={VPN_GUIDE_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-6 text-indigo-600 hover:text-indigo-800 font-medium underline underline-offset-2 flex items-center gap-1 w-fit"
+                  >
+                    (사내VPN 사용가이드)
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                  </a>
+                )}
               </div>
             )}
           </section>
@@ -410,6 +423,8 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
               message={error}
               onRetry={handleAnalyze}
               className="h-full border-none shadow-none bg-slate-50"
+              linkText={error.includes("VPN") || error.includes("사내 모델") ? "(사내VPN 사용가이드)" : undefined}
+              linkUrl={error.includes("VPN") || error.includes("사내 모델") ? VPN_GUIDE_URL : undefined}
             />
           ) : (
             <ResultCard
