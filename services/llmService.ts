@@ -379,6 +379,37 @@ const callLLM = async (userMessage: string): Promise<string> => {
   }
 };
 
+// 안전한 JSON 파싱 헬퍼 함수
+const safeJsonParse = <T>(text: string): T | null => {
+  try {
+    // 1. 순수 JSON 파싱 시도
+    return JSON.parse(text);
+  } catch (e) {
+    // 2. Markdown 코드 블록 제거 (```json ... ```)
+    const jsonMatch = text.match(/```(?:json)?\s*(\{[\s\S]*\}|\[[\s\S]*\])\s*```/);
+    if (jsonMatch && jsonMatch[1]) {
+      try {
+        return JSON.parse(jsonMatch[1]);
+      } catch (e2) {
+        /* ignore */
+      }
+    }
+
+    // 3. 중괄호/대괄호 범위 찾아서 파싱 시도
+    const objectMatch = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+    if (objectMatch) {
+      try {
+        return JSON.parse(objectMatch[0]);
+      } catch (e3) {
+        /* ignore */
+      }
+    }
+
+    console.error("JSON Parsing Failed. Raw text:", text);
+    return null;
+  }
+};
+
 export const analyzeAndRefineText = async (
   inputText: string,
   context: WritingContext,
@@ -452,13 +483,15 @@ export const analyzeAndRefineText = async (
   try {
     const responseText = await callLLM(prompt);
 
-    // JSON 파싱 시도
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]) as AnalysisResult;
+    // 안전한 JSON 파싱 시도
+    const result = safeJsonParse<AnalysisResult>(responseText);
+
+    if (result && result.improvedText) {
+      return result;
     }
 
-    throw new Error("No valid JSON found in response");
+    // 파싱 실패 시 기본값 반환보다는 에러를 던져서 UI에서 알림
+    throw new Error("AI가 올바른 응답을 주지 못했습니다. 다시 시도해주세요.");
   } catch (error) {
     console.error("LLM Error:", error);
     throw error;
@@ -506,11 +539,14 @@ export const generateMoreAlternatives = async (
 
   try {
     const responseText = await callLLM(prompt);
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return parsed.newAlternatives as string[];
+
+    // 안전한 JSON 파싱 시도
+    const result = safeJsonParse<{ newAlternatives: string[] }>(responseText);
+
+    if (result && Array.isArray(result.newAlternatives)) {
+      return result.newAlternatives;
     }
+
     return [];
   } catch (error) {
     console.error("LLM More Alternatives Error:", error);
@@ -558,11 +594,15 @@ export const compareOptions = async (
 
   try {
     const responseText = await callLLM(prompt);
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]) as CompareResult;
+
+    // 안전한 JSON 파싱 시도
+    const result = safeJsonParse<CompareResult>(responseText);
+
+    if (result && result.winner) {
+      return result;
     }
-    throw new Error("No valid JSON found in response");
+
+    throw new Error("AI가 올바른 응답을 주지 못했습니다.");
   } catch (error) {
     console.error("Comparison Error:", error);
     throw error;
