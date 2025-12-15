@@ -280,8 +280,8 @@ const processAttachments = (attachments: Attachment[]): string => {
 
 // Gemini API 설정 (fallback용)
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
-// 모델명을 명확하게 지정 (가장 안정적인 gemini-pro 사용)
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+// 모델명을 명확하게 지정 (목록에 존재하는 확실한 모델 사용)
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
 
 // Gemini API 호출 함수
 const callGeminiAPI = async (userMessage: string): Promise<string> => {
