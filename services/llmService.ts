@@ -281,59 +281,9 @@ const processAttachments = (attachments: Attachment[]): string => {
   }).join('\n');
 };
 
-// Gemini API 설정 (fallback용)
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
-// 모델명을 명확하게 지정 (사용량 제한 없는 gemini-flash-latest 사용)
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
-
-// Gemini API 호출 함수
-const callGeminiAPI = async (userMessage: string): Promise<string> => {
-  if (!GEMINI_API_KEY) {
-    throw new Error('Gemini API key is not configured');
-  }
-
-  try {
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `${SYSTEM_INSTRUCTION_BASE}\n\n${userMessage}`
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
-        }
-      })
-    });
-
-    if (!response.ok) {
-      // 에러 응답의 본문을 읽어서 더 자세한 원인 파악 시도
-      const errorBody = await response.text();
-      throw new Error(`Gemini API Error: ${response.status} ${response.statusText} - ${errorBody}`);
-    }
-
-    const data = await response.json();
-
-    // Gemini API 응답 형식: { candidates: [{ content: { parts: [{ text: "..." }] } }] }
-    if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-      return data.candidates[0].content.parts[0].text;
-    }
-
-    throw new Error("Invalid response format from Gemini API");
-  } catch (error) {
-    console.error("Gemini API Error:", error);
-    throw error;
-  }
-};
-
-// LLM API 호출 헬퍼 함수 (사내 모델 우선, 실패 시 Gemini fallback)
+// LLM API 호출 헬퍼 함수
 const callLLM = async (userMessage: string): Promise<{ content: string; model: string }> => {
-  // 1차 시도: 사내 GPT OSS 120b 모델
+  // 사내 GPT OSS 120b 모델 호출
   try {
     console.log(`📡 Connecting to internal LLM... (${MODEL_NAME})`);
     const response = await fetch(LLM_API_URL, {
@@ -355,11 +305,13 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
         ],
         stream: false
       }),
-      signal: AbortSignal.timeout(20000) // 20초 타임아웃 (사용자 요청)
+      signal: AbortSignal.timeout(20000) // 20초 타임아웃
     });
 
     if (!response.ok) {
-      throw new Error(`Internal LLM API Error: ${response.status} ${response.statusText}`);
+      // 405 Method Not Allowed 등 서버 응답 에러 처리
+      console.error(`Internal LLM API Error: ${response.status} ${response.statusText}`);
+      throw new Error(`사내 모델에 연결할 수 없습니다. (오류 코드: ${response.status})\nVPN 연결 또는 사내 랜선 사용을 권장합니다.`);
     }
 
     const data = await response.json();
@@ -370,20 +322,20 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
       return { content: data.message.content, model: 'Internal GPT OSS 120b' };
     }
 
-    throw new Error("Invalid response format from internal LLM");
+    throw new Error("AI 응답 형식이 올바르지 않습니다.");
   } catch (error) {
-    console.warn('⚠️ Internal LLM failed, falling back to Gemini API:', error);
+    console.error('⚠️ Internal LLM Connection Failed:', error);
 
-    // 2차 시도: Gemini API (Fallback)
-    try {
-      const geminiResponse = await callGeminiAPI(userMessage);
-      console.log('✅ Using Gemini API (fallback)');
-      return { content: geminiResponse, model: 'Gemini Flash (보조모델 사용중)' };
-    } catch (geminiError) {
-      console.error('❌ Both internal LLM and Gemini API failed');
-      const geminiMsg = geminiError instanceof Error ? geminiError.message : String(geminiError);
-      throw new Error(`모든 AI 서비스 연결 실패:\n[Gemini] ${geminiMsg}`);
+    // 타임아웃이든 네트워크 오류든 사용자에게는 VPN/망 확인 메시지 전달
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // 이미 위에서 생성한 명확한 에러 메시지라면 그대로 전달
+    if (errorMessage.includes("VPN 연결")) {
+      throw error;
     }
+
+    // 그 외 네트워크 에러 (fetch fail)
+    throw new Error("사내 모델 서버에 접속할 수 없습니다.\nVPN 연결 상태나 사내 네트워크(랜선)를 확인해주세요.");
   }
 };
 
