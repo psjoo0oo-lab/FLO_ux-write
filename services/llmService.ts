@@ -281,57 +281,8 @@ const processAttachments = (attachments: Attachment[]): string => {
   }).join('\n');
 };
 
-// Gemini API 설정 (fallback용)
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
-// 모델명을 명확하게 지정 (사용자 요청: gemini-2.5-flash)
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-
-// Gemini API 호출 함수
-const callGeminiAPI = async (userMessage: string): Promise<string> => {
-  if (!GEMINI_API_KEY) {
-    throw new Error('Gemini API key is not configured');
-  }
-
-  try {
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `${SYSTEM_INSTRUCTION_BASE}\n\n${userMessage}`
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
-        }
-      })
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(`Gemini API Error: ${response.status} ${response.statusText} - ${errorBody}`);
-    }
-
-    const data = await response.json();
-
-    if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-      return data.candidates[0].content.parts[0].text;
-    }
-
-    throw new Error("Invalid response format from Gemini API");
-  } catch (error) {
-    console.error("Gemini API Error:", error);
-    throw error;
-  }
-};
-
-// LLM API 호출 헬퍼 함수 (사내 모델 우선, 실패 시 Gemini fallback)
+// LLM API 호출 헬퍼 함수
 const callLLM = async (userMessage: string): Promise<{ content: string; model: string }> => {
-  // 1차 시도: 사내 GPT OSS 120b 모델
   try {
     console.log(`📡 Connecting to internal LLM... (${MODEL_NAME})`);
     const response = await fetch(LLM_API_URL, {
@@ -353,17 +304,16 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
         ],
         stream: false
       }),
-      signal: AbortSignal.timeout(15000) // 15초 타임아웃
+      signal: AbortSignal.timeout(20000) // 20초 타임아웃
     });
 
     if (!response.ok) {
-      console.warn(`Internal LLM failed (${response.status}), switching to fallback...`);
-      throw new Error(`Internal LLM API Error: ${response.status}`);
+      console.error(`Internal LLM API Error: ${response.status} ${response.statusText}`);
+      throw new Error(`사내 모델 서버에 접속할 수 없습니다. (오류 코드: ${response.status})\nVPN 연결 상태나 사내 네트워크(랜선)를 확인해주세요.`);
     }
 
     const data = await response.json();
 
-    // Ollama API 응답 형식: { message: { content: "..." } }
     if (data.message && data.message.content) {
       console.log('✅ Using internal GPT OSS 120b model');
       return { content: data.message.content, model: 'Internal GPT OSS 120b' };
@@ -371,47 +321,45 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
 
     throw new Error("Invalid response format from internal LLM");
   } catch (error) {
-    console.warn('⚠️ Internal LLM failed, falling back to Gemini API:', error);
+    console.error('⚠️ Internal LLM Connection Failed:', error);
 
-    // 2차 시도: Gemini 2.5 Flash API (Fallback)
-    try {
-      const geminiResponse = await callGeminiAPI(userMessage);
-      console.log('✅ Using Gemini API (fallback)');
-      return { content: geminiResponse, model: 'Gemini 2.5 Flash (보조모델 사용중)' };
-    } catch (geminiError) {
-      console.error('❌ Both internal LLM and Gemini API failed');
+    // 타임아웃이든 네트워크 오류든 사용자에게는 VPN/망 확인 메시지 전달
+    const errorMessage = error instanceof Error ? error.message : String(error);
 
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      // 사내망 에러 메시지는 유지하지 않고 통합 에러로 처리하거나, 
-      // 만약 Gemini도 실패했다면 정말 네트워크 문제일 수 있으므로 기존 에러 메시지 활용
-
-      if (errorMessage.includes("VPN") || errorMessage.includes("사내 모델")) {
-        // Gemini까지 왔다는 건 VPN 때문이라기보다 사내 모델이 죽어서 넘어온 것일 수 있음.
-        // 하지만 Gemini도 실패했다면 인터넷 자체가 문제일 수 있으므로 기존 에러 메시지 활용
-      }
-
-      throw new Error("모든 AI 서비스 연결에 실패했습니다.\n잠시 후 다시 시도하거나, VPN 연결 상태를 확인해주세요.");
+    // 이미 위에서 생성한 명확한 에러 메시지라면 그대로 전달
+    if (errorMessage.includes("VPN 연결")) {
+      throw error;
     }
+
+    // 그 외 네트워크 에러 (fetch fail)
+    throw new Error("사내 모델 서버에 접속할 수 없습니다.\nVPN 연결 상태나 사내 네트워크(랜선)를 확인해주세요.");
   }
 };
 
-// JSON 추출 헬퍼 함수 (무적 파싱 로직)
+// JSON 추출 헬퍼 함수 (최종 강화 버전)
 const extractJSON = (text: string): any => {
   try {
-    // 1. 가장 처음 나오는 '{' 와 가장 마지막에 나오는 '}' 를 찾습니다.
-    const firstOpen = text.indexOf('{');
-    const lastClose = text.lastIndexOf('}');
+    let processText = text;
 
-    // 2. 유효한 범위가 있다면 그 부분만 잘라냅니다.
-    if (firstOpen !== -1 && lastClose !== -1 && lastClose > firstOpen) {
-      const jsonCandidate = text.substring(firstOpen, lastClose + 1);
-      return JSON.parse(jsonCandidate);
+    // 1. 마크다운 코드 블록 (```json ... ```) 내부 추출 시도
+    const codeBlockMatch = text.match(/```(?:json)?([\s\S]*?)```/);
+    if (codeBlockMatch && codeBlockMatch[1]) {
+      processText = codeBlockMatch[1];
     }
 
-    // 3. 중괄호가 없다면 전체 텍스트로 파싱 시도 (혹시 모르니까)
-    return JSON.parse(text);
+    // 2. 추출된 텍스트(또는 원본)에서 가장 바깥쪽 '{' 와 '}' 찾기
+    const firstOpen = processText.indexOf('{');
+    const lastClose = processText.lastIndexOf('}');
+
+    if (firstOpen !== -1 && lastClose !== -1 && lastClose > firstOpen) {
+      processText = processText.substring(firstOpen, lastClose + 1);
+    }
+
+    // 3. 파싱 시도
+    return JSON.parse(processText);
   } catch (e) {
     console.error("JSON Parsing Failed. Raw text:", text);
+    // 실패 시 null 반환하여 상위에서 에러 처리 유도
     return null;
   }
 };
