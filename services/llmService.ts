@@ -281,9 +281,57 @@ const processAttachments = (attachments: Attachment[]): string => {
   }).join('\n');
 };
 
-// LLM API 호출 헬퍼 함수
+// Gemini API 설정 (fallback용)
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
+// 모델명을 명확하게 지정 (사용자 요청: gemini-2.5-flash)
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+
+// Gemini API 호출 함수
+const callGeminiAPI = async (userMessage: string): Promise<string> => {
+  if (!GEMINI_API_KEY) {
+    throw new Error('Gemini API key is not configured');
+  }
+
+  try {
+    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `${SYSTEM_INSTRUCTION_BASE}\n\n${userMessage}`
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`Gemini API Error: ${response.status} ${response.statusText} - ${errorBody}`);
+    }
+
+    const data = await response.json();
+
+    if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+      return data.candidates[0].content.parts[0].text;
+    }
+
+    throw new Error("Invalid response format from Gemini API");
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    throw error;
+  }
+};
+
+// LLM API 호출 헬퍼 함수 (사내 모델 우선, 실패 시 Gemini fallback)
 const callLLM = async (userMessage: string): Promise<{ content: string; model: string }> => {
-  // 사내 GPT OSS 120b 모델 호출
+  // 1차 시도: 사내 GPT OSS 120b 모델
   try {
     console.log(`📡 Connecting to internal LLM... (${MODEL_NAME})`);
     const response = await fetch(LLM_API_URL, {
@@ -305,13 +353,12 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
         ],
         stream: false
       }),
-      signal: AbortSignal.timeout(20000) // 20초 타임아웃
+      signal: AbortSignal.timeout(15000) // 15초 타임아웃
     });
 
     if (!response.ok) {
-      // 405 Method Not Allowed 등 서버 응답 에러 처리
-      console.error(`Internal LLM API Error: ${response.status} ${response.statusText}`);
-      throw new Error(`사내 모델 서버에 접속할 수 없습니다. (오류 코드: ${response.status})\nVPN 연결 상태나 사내 네트워크(랜선)를 확인해주세요.`);
+      console.warn(`Internal LLM failed (${response.status}), switching to fallback...`);
+      throw new Error(`Internal LLM API Error: ${response.status}`);
     }
 
     const data = await response.json();
@@ -322,49 +369,48 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
       return { content: data.message.content, model: 'Internal GPT OSS 120b' };
     }
 
-    throw new Error("AI 응답 형식이 올바르지 않습니다.");
+    throw new Error("Invalid response format from internal LLM");
   } catch (error) {
-    console.error('⚠️ Internal LLM Connection Failed:', error);
+    console.warn('⚠️ Internal LLM failed, falling back to Gemini API:', error);
 
-    // 타임아웃이든 네트워크 오류든 사용자에게는 VPN/망 확인 메시지 전달
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    // 2차 시도: Gemini 2.5 Flash API (Fallback)
+    try {
+      const geminiResponse = await callGeminiAPI(userMessage);
+      console.log('✅ Using Gemini API (fallback)');
+      return { content: geminiResponse, model: 'Gemini 2.5 Flash (보조모델 사용중)' };
+    } catch (geminiError) {
+      console.error('❌ Both internal LLM and Gemini API failed');
 
-    // 이미 위에서 생성한 명확한 에러 메시지라면 그대로 전달
-    if (errorMessage.includes("VPN 연결")) {
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      // 사내망 에러 메시지는 유지하지 않고 통합 에러로 처리하거나, 
+      // 만약 Gemini도 실패했다면 정말 네트워크 문제일 수 있으므로 기존 에러 메시지 활용
+
+      if (errorMessage.includes("VPN") || errorMessage.includes("사내 모델")) {
+        // Gemini까지 왔다는 건 VPN 때문이라기보다 사내 모델이 죽어서 넘어온 것일 수 있음.
+        // 하지만 Gemini도 실패했다면 인터넷 자체가 문제일 수 있으므로 기존 에러 메시지 활용
+      }
+
+      throw new Error("모든 AI 서비스 연결에 실패했습니다.\n잠시 후 다시 시도하거나, VPN 연결 상태를 확인해주세요.");
     }
-
-    // 그 외 네트워크 에러 (fetch fail)
-    throw new Error("사내 모델 서버에 접속할 수 없습니다.\nVPN 연결 상태나 사내 네트워크(랜선)를 확인해주세요.");
   }
 };
 
-// 안전한 JSON 파싱 헬퍼 함수
-const safeJsonParse = <T>(text: string): T | null => {
+// JSON 추출 헬퍼 함수 (무적 파싱 로직)
+const extractJSON = (text: string): any => {
   try {
-    // 1. 순수 JSON 파싱 시도
+    // 1. 가장 처음 나오는 '{' 와 가장 마지막에 나오는 '}' 를 찾습니다.
+    const firstOpen = text.indexOf('{');
+    const lastClose = text.lastIndexOf('}');
+
+    // 2. 유효한 범위가 있다면 그 부분만 잘라냅니다.
+    if (firstOpen !== -1 && lastClose !== -1 && lastClose > firstOpen) {
+      const jsonCandidate = text.substring(firstOpen, lastClose + 1);
+      return JSON.parse(jsonCandidate);
+    }
+
+    // 3. 중괄호가 없다면 전체 텍스트로 파싱 시도 (혹시 모르니까)
     return JSON.parse(text);
   } catch (e) {
-    // 2. Markdown 코드 블록 제거 (```json ... ```)
-    const jsonMatch = text.match(/```(?:json)?\s*(\{[\s\S]*\}|\[[\s\S]*\])\s*```/);
-    if (jsonMatch && jsonMatch[1]) {
-      try {
-        return JSON.parse(jsonMatch[1]);
-      } catch (e2) {
-        /* ignore */
-      }
-    }
-
-    // 3. 중괄호/대괄호 범위 찾아서 파싱 시도
-    const objectMatch = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-    if (objectMatch) {
-      try {
-        return JSON.parse(objectMatch[0]);
-      } catch (e3) {
-        /* ignore */
-      }
-    }
-
     console.error("JSON Parsing Failed. Raw text:", text);
     return null;
   }
@@ -447,7 +493,7 @@ export const analyzeAndRefineText = async (
     console.log('Raw response from LLM:', rawResponse);
 
     // 1. JSON 추출 시도 (가장 일반적인 경우)
-    let result = safeJsonParse<AnalysisResult>(rawResponse);
+    let result = extractJSON(rawResponse);
 
     if (!result) {
       throw new Error("AI 응답을 분석할 수 없습니다.");
@@ -509,7 +555,7 @@ export const generateMoreAlternatives = async (
 
   try {
     const { content: rawResponse, model } = await callLLM(prompt);
-    const parsedResult = safeJsonParse<{ newAlternatives: string[] }>(rawResponse);
+    const parsedResult = extractJSON(rawResponse);
 
     if (parsedResult && Array.isArray(parsedResult.newAlternatives)) {
       return parsedResult.newAlternatives;
@@ -562,7 +608,7 @@ export const compareOptions = async (
 
   try {
     const { content: rawResponse, model } = await callLLM(prompt);
-    const data = safeJsonParse<CompareResult>(rawResponse);
+    const data = extractJSON(rawResponse);
 
     if (!data) {
       throw new Error("AI 응답을 분석할 수 없습니다.");
