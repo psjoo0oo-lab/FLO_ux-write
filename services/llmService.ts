@@ -156,24 +156,30 @@ FLO의 「프로덕트 UX라이팅 지침」을 지키는 마이크로카피를 
 [출력 요구사항 - 매우 중요!]
 절대적으로 아래 JSON 형식으로만 응답하세요. 다른 텍스트, 설명, 주석을 절대 포함하지 마세요.
 JSON 외의 어떤 텍스트도 출력하지 마세요. 마크다운 코드 블록도 사용하지 마세요.
-오직 순수한 JSON 객체만 출력하세요:
+오직 순수한 JSON 객체만 출력하세요.
 
-    {
-      "improvedText": "제안하는 핵심 문구",
-      "reasoning": "선정 이유 설명",
-      "alternatives": ["대안1", "대안2", "대안3", "대안4", "대안5"]
-    }
+중요: JSON 문자열 값에는 반드시 영문 큰따옴표(")만 사용하세요. 한글 큰따옴표(“”)는 절대 사용하지 마세요.
 
-  다시 한번 강조: 위 JSON 형식 외에는 절대 아무것도 출력하지 마세요!
-  `;
+{
+  "improvedText": "제안하는 핵심 문구",
+  "reasoning": "선정 이유 설명",
+  "alternatives": ["대안1", "대안2", "대안3", "대안4", "대안5"]
+}
 
-// JSON 추출 헬퍼 함수 (강화된 버전)
+다시 한번 강조: 위 JSON 형식 외에는 절대 아무것도 출력하지 마세요!
+`;
+
+// JSON 추출 헬퍼 함수 (강화된 버전 - 한글 따옴표 처리)
 const extractJSON = (text: string): any => {
   try {
     let processText = text.trim();
 
+    // 0. 한글 큰따옴표를 영문 큰따옴표로 변환
+    processText = processText.replace(/“/g, '"').replace(/”/g, '"');
+    processText = processText.replace(/‘/g, "'").replace(/’/g, "'");
+
     // 1. 마크다운 코드 블록 (```json ... ```) 내부 추출 시도
-    const codeBlockMatch = text.match(/```(?: json) ? ([\s\S] *?)```/);
+    const codeBlockMatch = processText.match(/```(?:json)?([\s\S]*?)```/);
     if (codeBlockMatch && codeBlockMatch[1]) {
       processText = codeBlockMatch[1].trim();
     }
