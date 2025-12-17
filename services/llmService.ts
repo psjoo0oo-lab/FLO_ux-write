@@ -336,9 +336,11 @@ export const compareOptions = async (option1: string, option2: string): Promise<
     Option 2: "${option2}"
 
     어느 쪽이 더 명확하고, 사용자 친화적이며, 적절한가요?
-    반드시 아래 JSON 형식으로만 응답해주세요:
+    
+    [출력 형식]
+    반드시 아래 JSON 형식으로만 응답하세요. 영문 큰따옴표만 사용하세요.
     {
-      "winner": "Option 1 또는 Option 2 등 (완전히 동일하면 Equal)",
+      "winner": "Option 1 또는 Option 2 또는 Equal",
       "reason": "선택 이유 설명",
       "suggestion": "추가 제안사항"
     }
@@ -380,7 +382,10 @@ export const generateMoreAlternatives = async (text: string, count: number = 3):
     기존 문구: "${text}"
     
     이 문구의 의미를 유지하면서, FLO의 톤(친절하고 담백한)에 맞는 다른 표현 ${count}가지를 제안해주세요.
-    반드시 JSON 포맷으로: { "newAlternatives": ["대안1", "대안2", ...] } 형태로 답해주세요.
+    
+    [출력 형식]
+    반드시 아래 JSON 형식으로만 응답하세요. 영문 큰따옴표만 사용하세요.
+    { "newAlternatives": ["대안1", "대안2", "대안3"] }
   `;
 
   try {
