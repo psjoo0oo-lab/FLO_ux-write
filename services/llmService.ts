@@ -174,9 +174,14 @@ const extractJSON = (text: string): any => {
   try {
     let processText = text.trim();
 
-    // 0. 한글 큰따옴표를 영문 큰따옴표로 변환
-    processText = processText.replace(/“/g, '"').replace(/”/g, '"');
-    processText = processText.replace(/‘/g, "'").replace(/’/g, "'");
+    // 0. 모든 한글 따옴표를 영문 따옴표로 변환
+    processText = processText
+      .replace(/“/g, '"')  // 한글 여는 큰따옴표
+      .replace(/”/g, '"')  // 한글 닫는 큰따옴표
+      .replace(/‘/g, "'")  // 한글 여는 작은따옴표
+      .replace(/’/g, "'")  // 한글 닫는 작은따옴표
+      .replace(/｢/g, '"')  // 일본어 여는 큰따옴표
+      .replace(/｣/g, '"'); // 일본어 닫는 큰따옴표
 
     // 1. 마크다운 코드 블록 (```json ... ```) 내부 추출 시도
     const codeBlockMatch = processText.match(/```(?:json)?([\s\S]*?)```/);
@@ -195,10 +200,9 @@ const extractJSON = (text: string): any => {
     // 3. 파싱 시도
     const parsed = JSON.parse(processText);
 
-    // 4. 필수 필드 검증
-    if (!parsed.improvedText || !parsed.reasoning || !Array.isArray(parsed.alternatives)) {
-      console.error("JSON 필드 누락:", parsed);
-      throw new Error("응답에 필수 필드가 없습니다.");
+    // 4. 기본 객체 검증만 수행 (필드별 검증은 각 함수에서 처리)
+    if (typeof parsed !== 'object' || parsed === null) {
+      throw new Error("유효한 JSON 객체가 아닙니다.");
     }
 
     return parsed;
