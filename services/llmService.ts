@@ -288,7 +288,7 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
       body: JSON.stringify({
         contents: [{ parts: [{ text: `${SYSTEM_INSTRUCTION_BASE}\n\n${userMessage}` }] }],
         generationConfig: {
-          temperature: 0.7,
+          temperature: 0.8,
           topK: 40,
           topP: 0.95,
           maxOutputTokens: 2048,
@@ -319,7 +319,7 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: `${SYSTEM_INSTRUCTION_BASE}\n\n${userMessage}` }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
+        generationConfig: { temperature: 0.8, maxOutputTokens: 2048 }
       })
     });
 
@@ -368,10 +368,11 @@ export const analyzeAndRefineText = async (
     ${imageData ? '- 이미지가 첨부됨 (이미지 맥락을 고려하여 제안)' : ''}
 
     [요구 사항]
-    사용자 입력을 바탕으로 FLO UX 라이팅 가이드를 준수하는 문구를 제안하세요.
+    사용자 입력을 바탕으로 FLO UX 라이팅 가이드를 준수하는 **최고 품질의 창의적인 문구**를 제안하세요. 원본과 너무 유사한 문구는 피하고, FLO의 '세련된 이웃' 페르소나를 극대화할 수 있는 방향으로 과감하게 개선하세요.
+    
     반드시 다음 형식의 JSON 객체 하나만 출력해야 합니다:
-    1. improvedText: 가장 추천하는 메인 문구 (필수)
-    2. alternatives: 위와 스타일이 다른 대안 문구 5개 (배열, 필수)
+    1. improvedText: 가장 추천하는 메인 문구 (필수. 입력값보다 훨씬 FLO다운 표현으로 개선할 것)
+    2. alternatives: 각기 다른 관점(브랜드 강조형, 행동 유도형, 공감 중심형 등)을 가진 대안 문구 5개 (배열, 필수)
     3. reasoning: 선정 이유 (2문장 이내, 필수)
        - **매우 중요**: "이모지를 최소화했다"거나 "Lv.N 지침을 준수했다"와 같은 지침 이행에 대한 메타 설명은 절대 포함하지 마세요.
        - 오직 문구 전달력, 브랜드 보이스 부합 여부, 사용자 관점에서의 개선점 등 문구 자체에 대한 이유만 작성하세요.
@@ -477,7 +478,10 @@ export const generateMoreAlternatives = async (
 
   [요청 사항]
     위 조건과 FLO의 톤앤매너를 유지하면서, 기존에 제안된 것과 겹치지 않는 **새로운 대안 문구 5가지**를 추가로 제안해주세요.
-    문구가 짧아도 포기하지 말고 다양한 어투와 표현으로 5개를 꽉 채워주세요.
+    - 단순히 단어를 바꾸는 수준이 아니라, 문장 구조나 어조를 과감하게 비틀어 다양한 페르소나를 보여주세요.
+    - 예: (브랜드 강조형, 행동 유도형, 위트 있는 표현, 극도로 간결한 표현 등)
+    - 5개를 창의적으로 모두 채워주세요.
+    
     [출력 형식]
     { "alternatives": ["추가 대안 1", "추가 대안 2", "추가 대안 3", "추가 대안 4", "추가 대안 5"] }
   `;
