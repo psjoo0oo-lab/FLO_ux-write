@@ -250,16 +250,60 @@ const App: React.FC = () => {
     }
   };
 
-  const addFeedback = (type: 'OPINION' | 'CASE_STUDY', content: string) => {
+  const addFeedback = async (type: 'OPINION' | 'CASE_STUDY', content: string) => {
+    const timestamp = new Date().toLocaleString('ko-KR');
     const newFeedback: UserFeedback = {
       id: Date.now().toString(),
       type,
       content,
-      date: new Date().toLocaleString('ko-KR')
+      date: timestamp
     };
+
     const updatedList = [newFeedback, ...feedbackList];
     setFeedbackList(updatedList);
     localStorage.setItem('ux_user_feedback', JSON.stringify(updatedList));
+
+    // Slack 전송 로직 추가
+    const slackWebhookUrl = import.meta.env.VITE_SLACK_WEBHOOK_URL;
+    if (slackWebhookUrl) {
+      try {
+        const title = type === 'OPINION' ? '🔔 새로운 서비스 의견' : '💡 새로운 사례 제보';
+        const color = type === 'OPINION' ? '#4f46e5' : '#16a34a';
+
+        await fetch(slackWebhookUrl, {
+          method: 'POST',
+          mode: 'no-cors', // 슬랙 웹훅은 보통 no-cors로 쏴도 작동합니다.
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            attachments: [
+              {
+                color: color,
+                title: title,
+                text: content,
+                fields: [
+                  {
+                    title: "일시",
+                    value: timestamp,
+                    short: true
+                  },
+                  {
+                    title: "유형",
+                    value: type === 'OPINION' ? '서비스 의견' : '사례 제보',
+                    short: true
+                  }
+                ],
+                footer: "Tone & FLO Feedback System"
+              }
+            ]
+          }),
+        });
+      } catch (e) {
+        console.error("Slack notification failed", e);
+      }
+    }
+
     alert(type === 'OPINION' ? "소중한 의견 감사합니다!" : "사례 제보 감사합니다! 검토 후 반영하겠습니다.");
   };
 
