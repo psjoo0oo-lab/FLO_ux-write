@@ -1,8 +1,8 @@
 import { ToneLevel, WritingContext, AnalysisResult, CompareResult, WritingMode, Attachment } from "../types";
 
-// LLM 서비스: Gemini 2.0 Flash (우선) → 1.5 Flash (폴백)
-const PRIMARY_MODEL = 'gemini-2.0-flash-exp';
-const FALLBACK_MODEL = 'gemini-1.5-flash';
+// LLM 서비스: Gemini Exp 1206 (최상위 지능) → 2.0 Flash Thinking (고도화 추론)
+const PRIMARY_MODEL = 'gemini-exp-1206';
+const FALLBACK_MODEL = 'gemini-2.0-flash-thinking-exp';
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 // FLO UX 라이팅 Master Rules
@@ -288,7 +288,7 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
       body: JSON.stringify({
         contents: [{ parts: [{ text: `${SYSTEM_INSTRUCTION_BASE}\n\n${userMessage}` }] }],
         generationConfig: {
-          temperature: 0.8,
+          temperature: 0.9,
           topK: 40,
           topP: 0.95,
           maxOutputTokens: 2048,
