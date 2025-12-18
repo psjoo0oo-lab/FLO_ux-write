@@ -1,7 +1,7 @@
 import { ToneLevel, WritingContext, AnalysisResult, CompareResult, WritingMode, Attachment } from "../types";
 
-// LLM 서비스: Gemini 1.5 Pro (최우선 품질) → 1.5 Flash (안정적 폴백)
-const PRIMARY_MODEL = 'gemini-1.5-pro';
+// LLM 서비스: Gemini 2.0 Flash (이전 작동 버전) → 1.5 Flash (폴백)
+const PRIMARY_MODEL = 'gemini-2.0-flash-exp';
 const FALLBACK_MODEL = 'gemini-1.5-flash';
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
