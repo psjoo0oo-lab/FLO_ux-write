@@ -206,15 +206,15 @@ Lv.5 생동감 있고 표현적 (EXPRESSIVE)
 JSON 외의 어떤 텍스트도 출력하지 마세요. 마크다운 코드 블록도 사용하지 마세요.
 오직 순수한 JSON 객체만 출력하세요.
 
-중요: JSON 문자열 값에는 반드시 영문 큰따옴표(")만 사용하세요. 한글 큰따옴표(“”)는 절대 사용하지 마세요.
-
+중요: JSON 문자열 값에는 반드시 영문 큰따옴표(")만 사용하세요. 한글 큰따옴표(“”)는[출력 형식]
+반드시 다음 필드를 포함한 유효한 JSON 객체 하나만 출력하라. (마크다운 기호 없이 순수 JSON만 출력)
 {
-  "improvedText": "제안하는 핵심 문구",
-  "reasoning": "선정 이유 설명",
-  "alternatives": ["대안1", "대안2", "대안3", "대안4", "대안5"]
+  "improvedText": "교정된 문구",
+  "reasoning": "선정 이유 및 톤 레벨 Lv.N 준수 여부",
+  "alternatives": ["대안 문구 1", "대안 문구 2"]
 }
-
-다시 한번 강조: 위 JSON 형식 외에는 절대 아무것도 출력하지 마세요!
+이 필드들은 생략할 수 없으며, 반드시 형식을 갖춰야 한다.
+외에는 절대 아무것도 출력하지 마세요!
 `;
 
 // JSON 추출 헬퍼 함수 (강화된 버전 - 한글 따옴표 처리)
@@ -222,47 +222,45 @@ const extractJSON = (text: string): any => {
   try {
     let processText = text.trim();
 
-    // 0. 모든 한글 따옴표를 영문 따옴표로 변환
+    // 1. 따옴표 정규화 (전각/반각 따옴표 문제 해결)
     processText = processText
-      .replace(/“/g, '"')  // 한글 여는 큰따옴표
-      .replace(/”/g, '"')  // 한글 닫는 큰따옴표
-      .replace(/‘/g, "'")  // 한글 여는 작은따옴표
-      .replace(/’/g, "'")  // 한글 닫는 작은따옴표
-      .replace(/｢/g, '"')  // 일본어 여는 큰따옴표
-      .replace(/｣/g, '"'); // 일본어 닫는 큰따옴표
+      .replace(/“/g, '"').replace(/”/g, '"')
+      .replace(/‘/g, "'").replace(/’/g, "'")
+      .replace(/｢/g, '"').replace(/｣/g, '"');
 
-    // 1. 마크다운 코드 블록 (```json ... ```) 내부 추출 시도
-    const codeBlockMatch = processText.match(/```(?:json)?([\s\S]*?)```/);
-    if (codeBlockMatch && codeBlockMatch[1]) {
-      processText = codeBlockMatch[1].trim();
-    }
-
-    // 2. 추출된 텍스트(또는 원본)에서
-    // 3. 마지막 중괄호가 없는 경우 (잘린 응답) 강제로 닫기 시도
-    if (processText.includes('{') && !processText.includes('}')) {
-      processText = processText + '" }';
-    }
-
-    // Attempt to parse
-    try {
-      return JSON.parse(processText);
-    } catch (firstError) {
-      // 4. 파싱 실패 시 따옴표 등이 안 닫혔을 가능성 대응 (심폐소생술)
-      try {
-        let repaired = processText;
-        if (!repaired.endsWith('}')) {
-          if (!repaired.endsWith('"')) repaired += '"';
-          repaired += ' }';
-        }
-        return JSON.parse(repaired);
-      } catch (secondError) {
-        console.error("❌ JSON Parsing Failed even after repair");
-        console.log("Raw text for debugging:", text);
-        return null;
+    // 2. 마크다운 코드 블록 제거 (있는 경우에만)
+    if (processText.includes('```')) {
+      const codeBlockMatch = processText.match(/```(?:json)?([\s\S]*?)```/);
+      if (codeBlockMatch && codeBlockMatch[1]) {
+        processText = codeBlockMatch[1].trim();
       }
     }
+
+    // 3. 가장 바깥쪽 중괄호 { } 구간 추출 (순수 JSON만 남기기)
+    const firstOpen = processText.indexOf('{');
+    const lastClose = processText.lastIndexOf('}');
+
+    if (firstOpen !== -1) {
+      if (lastClose !== -1 && lastClose > firstOpen) {
+        processText = processText.substring(firstOpen, lastClose + 1);
+      } else {
+        // 중괄호가 닫히지 않은 경우 (잘린 응답)
+        processText = processText.substring(firstOpen);
+        // 간단한 수동 복구 시도
+        if (!processText.endsWith('}')) {
+          if (!processText.endsWith('"') && processText.includes('"')) {
+            processText += '"';
+          }
+          processText += ' }';
+        }
+      }
+    }
+
+    // 4. 최종 파싱 시도
+    return JSON.parse(processText);
   } catch (e) {
-    console.error("❌ Critical Error in extractJSON");
+    console.error("❌ JSON Parsing Failed");
+    console.log("Raw text for debugging:", text);
     return null;
   }
 };
@@ -286,7 +284,8 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
           topK: 40,
           topP: 0.95,
           maxOutputTokens: 2048,
-          responseMimeType: "application/json"
+          // 2.5 라인 모델은 확실히 지원하나, 기타 모델 호환성을 위해 체크 가능 시 적용
+          responseMimeType: model.includes('flash') ? "application/json" : undefined
         }
       })
     });

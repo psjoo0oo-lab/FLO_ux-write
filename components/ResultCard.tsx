@@ -121,11 +121,11 @@ const ResultCard: React.FC<ResultCardProps> = ({
               <RefreshCw className="w-4 h-4 text-slate-500" />
               다른 제안
             </h4>
-            <span className="text-xs text-slate-400 font-medium">{result.alternatives.length}개 제안</span>
+            <span className="text-xs text-slate-400 font-medium">{(result.alternatives || []).length}개 제안</span>
           </div>
 
           <ul className="space-y-2">
-            {result.alternatives.map((alt, idx) => (
+            {(result.alternatives || []).map((alt, idx) => (
               <li key={idx} className="group flex items-start justify-between p-3 rounded-lg border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50 transition-colors">
                 <span className="text-sm text-slate-700 leading-relaxed break-keep pr-2">{alt}</span>
                 <button
