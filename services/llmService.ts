@@ -1,8 +1,8 @@
 import { ToneLevel, WritingContext, AnalysisResult, CompareResult, WritingMode, Attachment } from "../types";
 
-// LLM 서비스: Gemini 1.5 Pro (최신 안정 버전) → 2.0 Flash-exp (폴백)
-const PRIMARY_MODEL = 'gemini-1.5-pro-002';
-const FALLBACK_MODEL = 'gemini-2.0-flash-exp';
+// LLM 서비스: Gemini 2.0 Flash (최종 메인 - 속도 및 품질 최적화) → 1.5 Flash (폴백)
+const PRIMARY_MODEL = 'gemini-2.0-flash-exp';
+const FALLBACK_MODEL = 'gemini-1.5-flash';
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 // FLO UX 라이팅 Master Rules
@@ -81,12 +81,14 @@ FLO의 「프로덕트 UX라이팅 지침」을 지키는 마이크로카피를 
 Lv.1 드라이하고 간결 (DRY)
   - 정보성 100%, 감정성 0%
   - 사실만 전달. 감정 표현, 수식어, 이모지 절대 사용 금지.
+  - **금지 표현**: 아이쿠, 앗, 어머, ~네요, ~군요, ~해요, ~할까요 등 (명령/서술형 종결어미 '-다/-오' 위주 사용)
   - 예: "저장되었습니다", "삭제하시겠습니까?"
 
 Lv.2 정중하고 신뢰감 (NEUTRAL)
   - 정보성 80%, 감정성 20%
   - 정중하되 담백하게. 과도한 친근함이나 발랄함 금지.
   - 감정 표현 최소화. 이모지 사용 금지.
+  - **금지 표현**: 아이쿠, 앗, 어머, ~했네요, ~하는군요 등 불필요한 추임새 및 감탄사.
   - 예: "재생 목록에 추가되었습니다", "다시 시도해 주세요"
   - 주의: "추가되었어요! 🎵" 같은 발랄한 표현 금지
 
