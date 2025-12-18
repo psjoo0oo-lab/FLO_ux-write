@@ -341,7 +341,7 @@ export const analyzeAndRefineText = async (
     [사용자 입력 정보]
     - 현재 텍스트: "${currentText}"
     - 작성 모드: ${mode}
-    - 톤앤매너: ${tone}
+    - 톤앤매너 단계: Lv.${tone} (가이드라인의 Lv.${tone} 지침을 엄격히 준수할 것)
   `;
 
   if (context) {
