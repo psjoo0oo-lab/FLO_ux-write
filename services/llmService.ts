@@ -1,8 +1,8 @@
 import { ToneLevel, WritingContext, AnalysisResult, CompareResult, WritingMode, Attachment } from "../types";
 
-// LLM 서비스: Gemini 2.0 Flash (이전 작동 버전) → 1.5 Flash (폴백)
-const PRIMARY_MODEL = 'gemini-2.0-flash-exp';
-const FALLBACK_MODEL = 'gemini-1.5-flash';
+// LLM 서비스: Gemini 1.5 Pro (최신 안정 버전) → 2.0 Flash-exp (폴백)
+const PRIMARY_MODEL = 'gemini-1.5-pro-002';
+const FALLBACK_MODEL = 'gemini-2.0-flash-exp';
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 // FLO UX 라이팅 Master Rules
@@ -49,7 +49,7 @@ FLO의 「프로덕트 UX라이팅 지침」을 지키는 마이크로카피를 
   - Do: ~에게 말하는 것처럼 개인화된 메시지를 쓴다. 명령조보다는 권유형(~해 보세요, ~이나, ~청유형 할까요)을 우선 사용한다.
   - Don't: 특정 성별/연령/취향을 차별하거나 배제하는 표현을 쓰지 않는다.
 
-[시스템 중심 용어 출력 로드 등 vs 어렵지 않은 전문 용어를 그대로 쓰지 않는다]
+- 시스템 중심 용어 지양: "데이터 로딩 중", "서버 에러" 등 시스템 중심 용어 대신 "미리 듣기를 준비하고 있어요", "잠시 후 다시 시도해주세요" 등 사용자 중심의 친절한 언어를 사용한다.
 
 
 [상황별 톤 조절 (Contextual Tone)]
@@ -279,7 +279,7 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
     throw new Error('Gemini API 키가 설정되지 않았습니다.');
   }
 
-  // 1차 시도: Gemini 2.5 Flash
+  // 1차 시도: Gemini 1.5 Pro
   try {
     console.log(`✨ Connecting to ${PRIMARY_MODEL}...`);
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${PRIMARY_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
@@ -319,7 +319,11 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: `${SYSTEM_INSTRUCTION_BASE}\n\n${userMessage}` }] }],
-        generationConfig: { temperature: 0.8, maxOutputTokens: 2048 }
+        generationConfig: {
+          temperature: 0.8,
+          maxOutputTokens: 2048,
+          responseMimeType: "application/json"
+        }
       })
     });
 
@@ -406,20 +410,37 @@ export const analyzeAndRefineText = async (
   }
 };
 
-export const compareOptions = async (option1: string, option2: string): Promise<CompareResult> => {
+export const compareOptions = async (
+  options: string[],
+  context: WritingContext,
+  customGuide: string,
+  caseStudies: string,
+  guideAttachments?: Attachment[],
+  caseAttachments?: Attachment[]
+): Promise<CompareResult> => {
+  const optionsText = options.map((opt, i) => `Option ${i + 1}: "${opt}"`).join('\n');
+
   const prompt = `
-    다음 두 가지 문구를 [FLO UX 라이팅 가이드] 기준으로 비교 분석해주세요.
+    다음 여러 가지 문구 옵션을 [FLO UX 라이팅 가이드] 기준으로 비교 분석하여 가장 적절한 하나를 골라주세요.
 
-    Option 1: "${option1}"
-    Option 2: "${option2}"
+    [상황 정보]
+    - 상황(Context): ${context}
+    
+    [문구 옵션]
+    ${optionsText}
 
-    어느 쪽이 더 명확하고, 사용자 친화적이며, 적절한가요?
-    [출력 형식]
-    반드시 아래 JSON 형식으로만 응답하세요. 영문 큰따옴표만 사용하세요.
+    [참고 가이드]
+    - 커스텀 가이드: ${customGuide || '없음'}
+    - 참고 사례: ${caseStudies || '없음'}
+
+    [요구 사항]
+    어느 쪽이 FLO의 브랜드 보이스(세련된 이웃, 친절하지만 담백하게)에 가장 부합하며 사용자 친화적인가요?
+    
+    반드시 아래 JSON 형식으로만 응답하세요:
     {
-      "winner": "Option 1 또는 Option 2 또는 Equal",
+      "winner": "Option N (예: Option 1)",
       "reason": "선택 이유 설명 (지침 준수 여부 등 메타 설명 제외, 문구 자체의 장단점 중심)",
-      "suggestion": "추가 제안사항"
+      "suggestion": "추가 제안사항(더 개선할 부분이 있다면)"
     }
   `;
 
