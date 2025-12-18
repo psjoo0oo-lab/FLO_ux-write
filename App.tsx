@@ -263,44 +263,40 @@ const App: React.FC = () => {
     setFeedbackList(updatedList);
     localStorage.setItem('ux_user_feedback', JSON.stringify(updatedList));
 
-    // Slack 전송 로직 추가
-    const slackWebhookUrl = import.meta.env.VITE_SLACK_WEBHOOK_URL;
-    if (slackWebhookUrl) {
-      try {
-        const title = type === 'OPINION' ? '🔔 새로운 서비스 의견' : '💡 새로운 사례 제보';
-        const color = type === 'OPINION' ? '#4f46e5' : '#16a34a';
+    // Webhook 전송 로직 (Slack 또는 Generic)
+    const webhookUrl = import.meta.env.VITE_FEEDBACK_WEBHOOK_URL || import.meta.env.VITE_SLACK_WEBHOOK_URL;
 
-        await fetch(slackWebhookUrl, {
+    if (webhookUrl) {
+      try {
+        const isSlack = webhookUrl.includes('slack.com');
+        const payload = isSlack ? {
+          attachments: [
+            {
+              color: type === 'OPINION' ? '#4f46e5' : '#16a34a',
+              title: type === 'OPINION' ? '🔔 새로운 서비스 의견' : '💡 새로운 사례 제보',
+              text: content,
+              fields: [
+                { title: "일시", value: timestamp, short: true },
+                { title: "유형", value: type === 'OPINION' ? '서비스 의견' : '사례 제보', short: true }
+              ],
+              footer: "Tone & FLO Feedback System"
+            }
+          ]
+        } : {
+          // 구글 시트나 일반 Webhook용 데이터 포맷
+          id: newFeedback.id,
+          type: type === 'OPINION' ? '서비스 의견' : '사례 제보',
+          content: content,
+          date: timestamp
+        };
+
+        await fetch(webhookUrl, {
           method: 'POST',
-          mode: 'no-cors', // 슬랙 웹훅은 보통 no-cors로 쏴도 작동합니다.
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            attachments: [
-              {
-                color: color,
-                title: title,
-                text: content,
-                fields: [
-                  {
-                    title: "일시",
-                    value: timestamp,
-                    short: true
-                  },
-                  {
-                    title: "유형",
-                    value: type === 'OPINION' ? '서비스 의견' : '사례 제보',
-                    short: true
-                  }
-                ],
-                footer: "Tone & FLO Feedback System"
-              }
-            ]
-          }),
+          mode: 'no-cors',
+          body: JSON.stringify(payload),
         });
       } catch (e) {
-        console.error("Slack notification failed", e);
+        console.error("Webhook notification failed", e);
       }
     }
 
