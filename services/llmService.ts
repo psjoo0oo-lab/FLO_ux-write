@@ -373,6 +373,8 @@ export const analyzeAndRefineText = async (
     1. improvedText: 가장 추천하는 메인 문구 (필수)
     2. alternatives: 위와 스타일이 다른 대안 문구 5개 (배열, 필수)
     3. reasoning: 선정 이유 (2문장 이내, 필수)
+       - **매우 중요**: "이모지를 최소화했다"거나 "Lv.N 지침을 준수했다"와 같은 지침 이행에 대한 메타 설명은 절대 포함하지 마세요.
+       - 오직 문구 전달력, 브랜드 보이스 부합 여부, 사용자 관점에서의 개선점 등 문구 자체에 대한 이유만 작성하세요.
 
     중요: 모든 텍스트는 유효한 JSON 문자열이어야 합니다. 큰따옴표를 쓰고, 줄바꿈은 \n으로 이스케이프하세요.
 
@@ -415,7 +417,7 @@ export const compareOptions = async (option1: string, option2: string): Promise<
     반드시 아래 JSON 형식으로만 응답하세요. 영문 큰따옴표만 사용하세요.
     {
       "winner": "Option 1 또는 Option 2 또는 Equal",
-      "reason": "선택 이유 설명",
+      "reason": "선택 이유 설명 (지침 준수 여부 등 메타 설명 제외, 문구 자체의 장단점 중심)",
       "suggestion": "추가 제안사항"
     }
   `;
