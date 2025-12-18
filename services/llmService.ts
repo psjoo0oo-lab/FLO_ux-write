@@ -199,21 +199,7 @@ Lv.5 생동감 있고 표현적 (EXPRESSIVE)
 - 제안하는 모든 문구에서 이모지 사용을 최소화하라.
 - 이모지는 온보딩, 축하 메시지 등 감정 표현이 꼭 필요한 극소수 경우에만 사용한다.
 - 일반적인 UI 텍스트, 버튼, 안내 문구에는 이모지를 사용하지 않는다.
-
-
-[출력 요구사항 - 매우 중요!]
-절대적으로 아래 JSON 형식으로만 응답하세요. 다른 텍스트, 설명, 주석을 절대 포함하지 마세요.
-오직 순수한 JSON 객체만 출력하세요. 마크다운 코드 블록(\`\`\`json)도 사용하지 마세요.
-
-  반드시 다음 필드를 포함한 유효한 JSON 객체 하나만 출력하라:
-    {
-      "improvedText": "교정된 메인 추천 문구",
-      "reasoning": "선정 이유 및 톤 레벨 Lv.N 준수 여부 (정보성/감정성 비율 언급)",
-      "alternatives": ["대안 문구 1", "대안 문구 2", "대안 문구 3", "대안 문구 4", "대안 문구 5"]
-    }
-이 필드들은 생략할 수 없으며, alternatives는 반드시 5개를 제안해야 한다.
-외에는 절대 아무것도 출력하지 마세요!
-  `;
+`;
 
 // JSON 추출 헬퍼 함수 (강화된 버전 - 한글 따옴표 처리)
 const extractJSON = (text: string): any => {
@@ -233,32 +219,56 @@ const extractJSON = (text: string): any => {
         processText = codeBlockMatch[1].trim();
       }
     }
-
     // 3. 가장 바깥쪽 중괄호 { } 구간 추출 (순수 JSON만 남기기)
     const firstOpen = processText.indexOf('{');
-    const lastClose = processText.lastIndexOf('}');
-
     if (firstOpen !== -1) {
-      if (lastClose !== -1 && lastClose > firstOpen) {
-        processText = processText.substring(firstOpen, lastClose + 1);
-      } else {
-        // 중괄호가 닫히지 않은 경우 (잘린 응답)
-        processText = processText.substring(firstOpen);
-        // 간단한 수동 복구 시도
-        if (!processText.endsWith('}')) {
-          if (!processText.endsWith('"') && processText.includes('"')) {
-            processText += '"';
-          }
-          processText += ' }';
-        }
+      processText = processText.substring(firstOpen);
+      const lastCloseActual = processText.lastIndexOf('}');
+      if (lastCloseActual !== -1) {
+        processText = processText.substring(0, lastCloseActual + 1);
       }
     }
 
-    // 4. 최종 파싱 시도
-    return JSON.parse(processText);
+    // 4. 잘린 응답 복구 로직 (더 정교하게)
+    if (!processText.endsWith('}')) {
+      // 열린 따옴표 닫기
+      const quoteCount = (processText.match(/"/g) || []).length;
+      if (quoteCount % 2 !== 0) {
+        processText += '"';
+      }
+
+      // 필요한 만큼 중괄호 닫기
+      const openBraces = (processText.match(/\{/g) || []).length;
+      const closeBraces = (processText.match(/\}/g) || []).length;
+      for (let i = 0; i < (openBraces - closeBraces); i++) {
+        processText += '}';
+      }
+    }
+
+    // 5. 최종 파싱
+    const parsed = JSON.parse(processText);
+
+    // 6. 필수 필드 보장 (UI 크래시 방지)
+    if (parsed && typeof parsed === 'object') {
+      if (!parsed.improvedText && parsed.text) parsed.improvedText = parsed.text;
+      if (!parsed.alternatives) parsed.alternatives = [];
+      if (!Array.isArray(parsed.alternatives)) parsed.alternatives = [parsed.alternatives];
+    }
+
+    return parsed;
   } catch (e) {
-    console.error("❌ JSON Parsing Failed");
-    console.log("Raw text for debugging:", text);
+    console.error("❌ JSON Parsing Failed:", e);
+    // 가장 원시적인 형태의 시도 (정규식으로 필요한 값만 추출)
+    try {
+      const improvedMatch = text.match(/"improvedText"\s*:\s*"([^"]+)"/);
+      if (improvedMatch) {
+        return {
+          improvedText: improvedMatch[1],
+          alternatives: [],
+          reasoning: "응답 파싱 중 오류가 발생하여 텍스트만 복구되었습니다."
+        };
+      }
+    } catch (innerE) { }
     return null;
   }
 };
@@ -359,7 +369,14 @@ export const analyzeAndRefineText = async (
 
     [요구 사항]
     위 정보를 바탕으로 FLO의 UX 라이팅 가이드를 준수하여 최적의 문구를 제안해주세요.
-    반드시 5개의 대안(alternatives)을 포함해야 합니다.
+    반드시 아래 JSON 형식으로만 응답해야 하며, 대안(alternatives)은 반드시 5개를 포함해야 합니다.
+
+    [출력 형식]
+    {
+      "improvedText": "가장 추천하는 문구",
+      "alternatives": ["대안1", "대안2", "대안3", "대안4", "대안5"],
+      "reasoning": "선정이유 (간결하게 2문장 이내)"
+    }
   `;
 
   try {
@@ -456,17 +473,19 @@ export const generateMoreAlternatives = async (
     위 조건과 FLO의 톤앤매너를 유지하면서, 기존에 제안된 것과 겹치지 않는 새로운 대안 문구 5가지를 추가로 제안해주세요.
     
     [출력 형식]
-    반드시 아래 JSON 형식으로만 응답하세요.
-    { "newAlternatives": ["새로운 대안1", "새로운 대안2", "새로운 대안3", "새로운 대안4", "새로운 대안5"] }
+    { "alternatives": ["새로운 대안1", "새로운 대안2", "새로운 대안3", "새로운 대안4", "새로운 대안5"] }
   `;
 
   try {
     const { content: rawResponse } = await callLLM(prompt);
     const parsedResult = extractJSON(rawResponse);
 
-    if (parsedResult && Array.isArray(parsedResult.newAlternatives)) {
-      return parsedResult.newAlternatives;
+    if (parsedResult && Array.isArray(parsedResult.alternatives)) {
+      return parsedResult.alternatives;
     }
+    // alternatives 키가 아닌 배열 자체로 왔을 경우 대비
+    if (Array.isArray(parsedResult)) return parsedResult;
+
     return [];
   } catch (e) {
     console.error("Alternative Generation Error:", e);
