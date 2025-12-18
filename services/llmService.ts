@@ -1,8 +1,8 @@
 import { ToneLevel, WritingContext, AnalysisResult, CompareResult, WritingMode, Attachment } from "../types";
 
-// LLM 서비스: Gemini 2.5 Flash (우선) → 2.0 Flash (폴백)
-const PRIMARY_MODEL = 'gemini-2.5-flash';
-const FALLBACK_MODEL = 'gemini-2.0-flash-exp';
+// LLM 서비스: Gemini 2.0 Flash (우선) → 1.5 Flash (폴백)
+const PRIMARY_MODEL = 'gemini-2.0-flash-exp';
+const FALLBACK_MODEL = 'gemini-1.5-flash';
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 // FLO UX 라이팅 Master Rules
@@ -368,22 +368,19 @@ export const analyzeAndRefineText = async (
     ${imageData ? '- 이미지가 첨부됨 (이미지 맥락을 고려하여 제안)' : ''}
 
     [요구 사항]
-    위 정보를 바탕으로 FLO의 UX 라이팅 가이드와 선택한 톤 레벨(Lv.${tone})을 준수하여 최적의 문구를 제안하세요.
-    - 메인 추천 문구(improvedText) 1개와 서로 다른 스타일의 대안 문구(alternatives) 5개를 반드시 생성해야 합니다.
-    - 입력이 짧더라도 맥락을 고려하여 5개의 창의적인 대안을 풍부하게 제안하세요.
-    - 답변은 반드시 아래 JSON 형식을 엄격히 지켜야 합니다.
+    사용자 입력을 바탕으로 FLO UX 라이팅 가이드를 준수하는 문구를 제안하세요.
+    반드시 다음 형식의 JSON 객체 하나만 출력해야 합니다:
+    1. improvedText: 가장 추천하는 메인 문구 (필수)
+    2. alternatives: 위와 스타일이 다른 대안 문구 5개 (배열, 필수)
+    3. reasoning: 선정 이유 (2문장 이내, 필수)
 
-    [출력 형식]
+    중요: 모든 텍스트는 유효한 JSON 문자열이어야 합니다. 큰따옴표를 쓰고, 줄바꿈은 \n으로 이스케이프하세요.
+
+    [출력 JSON 예시]
     {
-      "improvedText": "가장 권장하는 메인 추천 문구",
-      "alternatives": [
-        "스타일이 다른 대안 문구 1",
-        "스타일이 다른 대안 문구 2",
-        "스타일이 다른 대안 문구 3",
-        "스타일이 다른 대안 문구 4",
-        "스타일이 다른 대안 문구 5"
-      ],
-      "reasoning": "가이드 준수 여부 및 선정 이유 (2문장 이내)"
+      "improvedText": "추천 텍스트",
+      "alternatives": ["대안1", "대안2", "대안3", "대안4", "대안5"],
+      "reasoning": "가이드라인 준수 여부 및 이유"
     }
   `;
 
