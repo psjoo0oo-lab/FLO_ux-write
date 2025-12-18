@@ -237,28 +237,32 @@ const extractJSON = (text: string): any => {
       processText = codeBlockMatch[1].trim();
     }
 
-    // 2. 추출된 텍스트(또는 원본)에서 가장 바깥쪽 '{' 와 '}' 찾기
-    const firstOpen = processText.indexOf('{');
-    const lastClose = processText.lastIndexOf('}');
-
-    if (firstOpen !== -1 && lastClose !== -1 && lastClose > firstOpen) {
-      processText = processText.substring(firstOpen, lastClose + 1);
+    // 2. 추출된 텍스트(또는 원본)에서
+    // 3. 마지막 중괄호가 없는 경우 (잘린 응답) 강제로 닫기 시도
+    if (processText.includes('{') && !processText.includes('}')) {
+      processText = processText + '" }';
     }
 
-    // 3. 파싱 시도
-    const parsed = JSON.parse(processText);
-
-    // 4. 기본 객체 검증만 수행 (필드별 검증은 각 함수에서 처리)
-    if (typeof parsed !== 'object' || parsed === null) {
-      throw new Error("유효한 JSON 객체가 아닙니다.");
+    // Attempt to parse
+    try {
+      return JSON.parse(processText);
+    } catch (firstError) {
+      // 4. 파싱 실패 시 따옴표 등이 안 닫혔을 가능성 대응 (심폐소생술)
+      try {
+        let repaired = processText;
+        if (!repaired.endsWith('}')) {
+          if (!repaired.endsWith('"')) repaired += '"';
+          repaired += ' }';
+        }
+        return JSON.parse(repaired);
+      } catch (secondError) {
+        console.error("❌ JSON Parsing Failed even after repair");
+        console.log("Raw text for debugging:", text);
+        return null;
+      }
     }
-
-    return parsed;
   } catch (e) {
-    console.error("❌ JSON Parsing Failed");
-    console.error("Raw text length:", text.length);
-    console.error("Raw text preview:", text.substring(0, 500));
-    console.error("Error:", e);
+    console.error("❌ Critical Error in extractJSON");
     return null;
   }
 };
@@ -277,7 +281,13 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: `${SYSTEM_INSTRUCTION_BASE}\n\n${userMessage}` }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 2048,
+          responseMimeType: "application/json"
+        }
       })
     });
 
