@@ -308,42 +308,10 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
                 <span className="bg-slate-900 text-white text-xs font-bold px-2 py-0.5 rounded-full">STEP 2</span>
                 <h3 className="font-bold text-slate-800">고민 내용을 입력하세요</h3>
               </div>
-              <div className="flex items-center gap-2 ml-auto">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="hidden"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition whitespace-nowrap"
-                >
-                  <ImageIcon className="w-3.5 h-3.5" />
-                  이미지 추가
-                </button>
-              </div>
             </div>
 
             {/* Input Area */}
             <div className="flex-1 flex flex-col min-h-[200px] lg:min-h-0">
-              {pageState.imagePreview && (
-                <div className="mb-3 relative inline-block self-start">
-                  <img
-                    src={pageState.imagePreview}
-                    alt="Preview"
-                    className="h-24 w-auto rounded-lg border border-slate-200 object-cover"
-                  />
-                  <button
-                    onClick={handleRemoveImage}
-                    className="absolute -top-2 -right-2 bg-slate-900 text-white rounded-full p-1 hover:bg-red-500 transition shadow-sm"
-                    title="이미지 제거"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
 
               <textarea
                 className={`w-full p-4 rounded-lg border focus:ring-2 resize-none text-base leading-relaxed flex-1 min-h-[120px] transition-all 
