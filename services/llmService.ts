@@ -203,19 +203,17 @@ Lv.5 생동감 있고 표현적 (EXPRESSIVE)
 
 [출력 요구사항 - 매우 중요!]
 절대적으로 아래 JSON 형식으로만 응답하세요. 다른 텍스트, 설명, 주석을 절대 포함하지 마세요.
-JSON 외의 어떤 텍스트도 출력하지 마세요. 마크다운 코드 블록도 사용하지 마세요.
-오직 순수한 JSON 객체만 출력하세요.
+오직 순수한 JSON 객체만 출력하세요. 마크다운 코드 블록(\`\`\`json)도 사용하지 마세요.
 
-중요: JSON 문자열 값에는 반드시 영문 큰따옴표(")만 사용하세요. 한글 큰따옴표(“”)는[출력 형식]
-반드시 다음 필드를 포함한 유효한 JSON 객체 하나만 출력하라. (마크다운 기호 없이 순수 JSON만 출력)
-{
-  "improvedText": "교정된 문구",
-  "reasoning": "선정 이유 및 톤 레벨 Lv.N 준수 여부",
-  "alternatives": ["대안 문구 1", "대안 문구 2"]
-}
-이 필드들은 생략할 수 없으며, 반드시 형식을 갖춰야 한다.
+  반드시 다음 필드를 포함한 유효한 JSON 객체 하나만 출력하라:
+    {
+      "improvedText": "교정된 메인 추천 문구",
+      "reasoning": "선정 이유 및 톤 레벨 Lv.N 준수 여부 (정보성/감정성 비율 언급)",
+      "alternatives": ["대안 문구 1", "대안 문구 2", "대안 문구 3", "대안 문구 4", "대안 문구 5"]
+    }
+이 필드들은 생략할 수 없으며, alternatives는 반드시 5개를 제안해야 한다.
 외에는 절대 아무것도 출력하지 마세요!
-`;
+  `;
 
 // JSON 추출 헬퍼 함수 (강화된 버전 - 한글 따옴표 처리)
 const extractJSON = (text: string): any => {
@@ -284,8 +282,7 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
           topK: 40,
           topP: 0.95,
           maxOutputTokens: 2048,
-          // 2.5 라인 모델은 확실히 지원하나, 기타 모델 호환성을 위해 체크 가능 시 적용
-          responseMimeType: model.includes('flash') ? "application/json" : undefined
+          responseMimeType: "application/json"
         }
       })
     });
@@ -336,53 +333,48 @@ const callLLM = async (userMessage: string): Promise<{ content: string; model: s
 
 export const analyzeAndRefineText = async (
   currentText: string,
-  mode: WritingMode,
+  context: WritingContext,
   tone: ToneLevel,
-  context?: WritingContext,
-  imageAttachment?: Attachment
+  customGuide: string,
+  caseStudies: string,
+  mode: WritingMode,
+  imageData?: { data: string; mimeType: string },
+  element?: string,
+  guideAttachments?: Attachment[],
+  caseAttachments?: Attachment[]
 ): Promise<AnalysisResult> => {
 
-  if (!currentText.trim() && !imageAttachment) {
-    throw new Error("텍스트 또는 이미지를 입력해주세요.");
-  }
-
-  let prompt = `
+  const userMessage = `
     [사용자 입력 정보]
     - 현재 텍스트: "${currentText}"
-    - 작성 모드: ${mode}
-    - 톤앤매너 단계: Lv.${tone} (가이드라인의 Lv.${tone} 지침을 엄격히 준수할 것)
-  `;
-
-  if (context) {
-    prompt += `
+    - 작성 모드: ${mode === WritingMode.CREATE ? '신규 작성' : '기존 문구 교정'}
     - 상황(Context): ${context}
-    `;
-  }
+    ${element ? `- 상세 요소: ${element}` : ''}
+    - 톤앤매너 단계: Lv.${tone} (가이드라인의 Lv.${tone} 지침을 엄격히 준수)
 
-  if (imageAttachment) {
-    prompt += `
-      - 첨부된 이미지 정보:
-        (사용자가 이미지를 업로드했지만, 텍스트 모델의 한계로 이미지 자체를 볼 수는 없습니다. 
-         대신 이미지가 있다고 가정하고, 이미지와 어울리는 텍스트를 제안해주세요.)
-      `;
-  }
+    [참고 가이드 및 사례]
+    - 커스텀 가이드: ${customGuide || '없음'}
+    - 참고 사례: ${caseStudies || '없음'}
+    ${imageData ? '- 이미지가 첨부됨 (이미지 맥락을 고려하여 제안)' : ''}
 
-  prompt += `
-    [요청 사항]
-    위 정보를 바탕으로 FLO의 UX 라이팅 가이드를 준수하여 텍스트를 개선해주세요.
-    반드시 JSON 형식으로 응답해주세요.
+    [요구 사항]
+    위 정보를 바탕으로 FLO의 UX 라이팅 가이드를 준수하여 최적의 문구를 제안해주세요.
+    반드시 5개의 대안(alternatives)을 포함해야 합니다.
   `;
 
   try {
-    const { content: rawResponse, model } = await callLLM(prompt);
-    let result = extractJSON(rawResponse);
+    const { content: rawResponse, model: usedModelName } = await callLLM(userMessage);
+    const result = extractJSON(rawResponse);
 
-    if (!result) {
-      throw new Error("AI 응답을 분석할 수 없습니다.");
+    if (!result || !result.improvedText) {
+      throw new Error("AI 응답 형식이 올바르지 않습니다.");
     }
-    result.usedModel = model;
-    return result as AnalysisResult;
 
+    return {
+      ...result,
+      usedModel: usedModelName,
+      alternatives: Array.isArray(result.alternatives) ? result.alternatives : []
+    };
   } catch (error) {
     console.error("Analysis Error:", error);
     throw error;
@@ -438,19 +430,38 @@ export const getConceptExplanation = async (topic: string): Promise<string> => {
   }
 };
 
-export const generateMoreAlternatives = async (text: string, count: number = 3): Promise<string[]> => {
+export const generateMoreAlternatives = async (
+  text: string,
+  context: WritingContext,
+  tone: ToneLevel,
+  customGuide: string,
+  caseStudies: string,
+  existingAlternatives: string[],
+  element?: string,
+  guideAttachments?: Attachment[],
+  caseAttachments?: Attachment[]
+): Promise<string[]> => {
   const prompt = `
-    기존 문구: "${text}"
-    
-    이 문구의 의미를 유지하면서, FLO의 톤(친절하고 담백한)에 맞는 다른 표현 ${count}가지를 제안해주세요.
+    [상황 정보]
+    - 원본 문구: "${text}"
+    - 상황(Context): ${context}
+    ${element ? `- 상세 요소: ${element}` : ''}
+    - 톤앤매너 단계: Lv.${tone}
+    - 기제안된 문구(중복 피할 것): ${existingAlternatives.join(', ')}
+
+    [참고 가이드]
+    - 커스텀 가이드: ${customGuide || '없음'}
+
+    [요청 사항]
+    위 조건과 FLO의 톤앤매너를 유지하면서, 기존에 제안된 것과 겹치지 않는 새로운 대안 문구 5가지를 추가로 제안해주세요.
     
     [출력 형식]
-    반드시 아래 JSON 형식으로만 응답하세요. 영문 큰따옴표만 사용하세요.
-    { "newAlternatives": ["대안1", "대안2", "대안3"] }
+    반드시 아래 JSON 형식으로만 응답하세요.
+    { "newAlternatives": ["새로운 대안1", "새로운 대안2", "새로운 대안3", "새로운 대안4", "새로운 대안5"] }
   `;
 
   try {
-    const { content: rawResponse, model } = await callLLM(prompt);
+    const { content: rawResponse } = await callLLM(prompt);
     const parsedResult = extractJSON(rawResponse);
 
     if (parsedResult && Array.isArray(parsedResult.newAlternatives)) {
