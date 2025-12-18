@@ -29,7 +29,10 @@ const PLACEHOLDERS = {
     [WritingContext.BUSINESS]: "예: 서비스 점검 시간을 알리는 공지사항 제목을 정중하게 작성해줘."
   },
   [WritingMode.REFINE]: {
-    [WritingContext.BUSINESS]: "작성해둔 초안을 입력해주세요.\n\n예: 10월 1일 점검이 예정되어 있으니 이용에 참고 바랍니다."
+    [WritingContext.PRODUCT_UI]: "검토가 필요한 프로덕트 문구를 입력해주세요.\n\n예: 잘못된 비밀번호입니다. 다시 입력하세요.",
+    [WritingContext.MARKETING]: "검토가 필요한 마케팅 문구를 입력해주세요.\n\n예: 지금 가입하면 첫 달 무료 혜택을 드립니다!",
+    [WritingContext.CREATIVE]: "검토가 필요한 브랜드/온보딩 문구를 입력해주세요.\n\n예: 당신의 음악 취향을 찾아드려요.",
+    [WritingContext.BUSINESS]: "검토가 필요한 공지사항/비즈니스 문구를 입력해주세요.\n\n예: 10월 1일 점검이 예정되어 있으니 이용에 참고 바랍니다."
   }
 };
 

@@ -368,14 +368,22 @@ export const analyzeAndRefineText = async (
     ${imageData ? '- 이미지가 첨부됨 (이미지 맥락을 고려하여 제안)' : ''}
 
     [요구 사항]
-    위 정보를 바탕으로 FLO의 UX 라이팅 가이드를 준수하여 최적의 문구를 제안해주세요.
-    반드시 아래 JSON 형식으로만 응답해야 하며, 대안(alternatives)은 반드시 5개를 포함해야 합니다.
+    위 정보를 바탕으로 FLO의 UX 라이팅 가이드와 선택한 톤 레벨(Lv.${tone})을 준수하여 최적의 문구를 제안하세요.
+    - 메인 추천 문구(improvedText) 1개와 서로 다른 스타일의 대안 문구(alternatives) 5개를 반드시 생성해야 합니다.
+    - 입력이 짧더라도 맥락을 고려하여 5개의 창의적인 대안을 풍부하게 제안하세요.
+    - 답변은 반드시 아래 JSON 형식을 엄격히 지켜야 합니다.
 
     [출력 형식]
     {
-      "improvedText": "가장 추천하는 문구",
-      "alternatives": ["대안1", "대안2", "대안3", "대안4", "대안5"],
-      "reasoning": "선정이유 (간결하게 2문장 이내)"
+      "improvedText": "가장 권장하는 메인 추천 문구",
+      "alternatives": [
+        "스타일이 다른 대안 문구 1",
+        "스타일이 다른 대안 문구 2",
+        "스타일이 다른 대안 문구 3",
+        "스타일이 다른 대안 문구 4",
+        "스타일이 다른 대안 문구 5"
+      ],
+      "reasoning": "가이드 준수 여부 및 선정 이유 (2문장 이내)"
     }
   `;
 
@@ -406,7 +414,6 @@ export const compareOptions = async (option1: string, option2: string): Promise<
     Option 2: "${option2}"
 
     어느 쪽이 더 명확하고, 사용자 친화적이며, 적절한가요?
-    
     [출력 형식]
     반드시 아래 JSON 형식으로만 응답하세요. 영문 큰따옴표만 사용하세요.
     {
@@ -414,7 +421,7 @@ export const compareOptions = async (option1: string, option2: string): Promise<
       "reason": "선택 이유 설명",
       "suggestion": "추가 제안사항"
     }
-    `;
+  `;
 
   try {
     const { content: rawResponse, model } = await callLLM(prompt);
@@ -459,21 +466,21 @@ export const generateMoreAlternatives = async (
   caseAttachments?: Attachment[]
 ): Promise<string[]> => {
   const prompt = `
-    [상황 정보]
-    - 원본 문구: "${text}"
+  [상황 정보]
+  - 원본 문구: "${text}"
     - 상황(Context): ${context}
     ${element ? `- 상세 요소: ${element}` : ''}
-    - 톤앤매너 단계: Lv.${tone}
-    - 기제안된 문구(중복 피할 것): ${existingAlternatives.join(', ')}
+  - 톤앤매너 단계: Lv.${tone}
+  - 기제안된 문구(중복 피할 것): ${existingAlternatives.join(', ')}
 
-    [참고 가이드]
+  [참고 가이드]
     - 커스텀 가이드: ${customGuide || '없음'}
 
-    [요청 사항]
-    위 조건과 FLO의 톤앤매너를 유지하면서, 기존에 제안된 것과 겹치지 않는 새로운 대안 문구 5가지를 추가로 제안해주세요.
-    
+  [요청 사항]
+    위 조건과 FLO의 톤앤매너를 유지하면서, 기존에 제안된 것과 겹치지 않는 **새로운 대안 문구 5가지**를 추가로 제안해주세요.
+    문구가 짧아도 포기하지 말고 다양한 어투와 표현으로 5개를 꽉 채워주세요.
     [출력 형식]
-    { "alternatives": ["새로운 대안1", "새로운 대안2", "새로운 대안3", "새로운 대안4", "새로운 대안5"] }
+    { "alternatives": ["추가 대안 1", "추가 대안 2", "추가 대안 3", "추가 대안 4", "추가 대안 5"] }
   `;
 
   try {
