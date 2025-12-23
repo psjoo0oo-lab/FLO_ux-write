@@ -17,7 +17,7 @@ interface WritingAssistantProps {
 const CONTEXT_ELEMENTS: Record<WritingContext, string[]> = {
   [WritingContext.PRODUCT_UI]: ['타이틀', '서브텍스트', '버튼명', '토스트 메시지', '에러 메시지', '툴팁', '플레이스홀더', '라벨/태그'],
   [WritingContext.MARKETING]: ['푸시 알림 타이틀', '푸시 알림 본문', '배너 타이틀', '배너 서브텍스트', '이벤트/프로모션 문구', '광고 슬로건'],
-  [WritingContext.CREATIVE]: ['온보딩 타이틀', '온보딩 설명', '엠티 스테이트(빈화면)', '브랜드 슬로건', '로딩 문구'],
+  [WritingContext.CREATIVE]: ['온보딩 타이틀', '온보딩 설명', '엠티 스테이트(빈화면)', '로딩 문구'],
   [WritingContext.BUSINESS]: ['공지사항 제목', '정책/약관', '비즈니스 메일', 'FAQ 답변', '시스템 알림']
 };
 
