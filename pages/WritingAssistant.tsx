@@ -4,6 +4,7 @@ import ToneSlider from '../components/ToneSlider';
 import ResultCard from '../components/ResultCard';
 import { analyzeAndRefineText, generateMoreAlternatives } from '../services/llmService';
 import { WritingMode, ToneLevel, WritingContext } from '../types';
+import { adjustToneLevel, getRecommendedToneLevel } from '../utils/toneLevelUtils';
 import { GuideContext, FormStateContext } from '../App';
 import { Sparkles, AlertCircle, MonitorSmartphone, Megaphone, Palette, Briefcase, Image as ImageIcon, X } from 'lucide-react';
 
@@ -57,10 +58,17 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
   };
 
   const handleContextChange = (newContext: WritingContext) => {
-    // If context changes, reset the element selection unless it's the same context
+    // If context changes, reset the element selection and adjust tone level if needed
+    // Option 1: Always reset to recommended tone
+    const newTone = getRecommendedToneLevel(newContext);
+
+    // Option 2: Keep current tone if valid, otherwise adjust (uncomment if preferred)
+    // const newTone = adjustToneLevel(newContext, pageState.tone);
+
     updateState({
       context: newContext,
-      element: '' // Reset element on context switch
+      element: '', // Reset element on context switch
+      tone: newTone
     });
   };
 
@@ -343,7 +351,11 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({ mode }) => {
                 표현의 정도
               </label>
               <div className="bg-slate-50 px-4 py-2 rounded-lg border border-slate-200">
-                <ToneSlider value={pageState.tone} onChange={(val) => updateState({ tone: val })} />
+                <ToneSlider
+                  value={pageState.tone}
+                  onChange={(val) => updateState({ tone: val })}
+                  context={pageState.context}
+                />
               </div>
             </div>
 

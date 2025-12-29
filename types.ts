@@ -40,6 +40,7 @@ export interface GuideHistory {
 }
 
 export interface AnalysisResult {
+  thinking?: string; // AI 사고 과정
   improvedText: string;
   reasoning: string;
   alternatives: string[];
