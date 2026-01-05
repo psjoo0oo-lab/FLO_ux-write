@@ -12,7 +12,7 @@ const ToneSlider: React.FC<ToneSliderProps> = ({ value, onChange, context }) => 
   const labels = {
     1: '단호하고 직관적인',
     2: '정중하고 담백한',
-    3: '다정하고 명확한',
+    3: '친근하고 명확한',
     4: '세심하고 공감하는',
     5: '생동감 있고 표현적인'
   };
@@ -51,10 +51,10 @@ const ToneSlider: React.FC<ToneSliderProps> = ({ value, onChange, context }) => 
           <div
             key={level}
             className={`text-xs text-center ${isLevelDisabled(level as ToneLevel)
-                ? 'text-slate-300'
-                : level === value
-                  ? 'text-indigo-600 font-bold'
-                  : 'text-slate-500'
+              ? 'text-slate-300'
+              : level === value
+                ? 'text-indigo-600 font-bold'
+                : 'text-slate-500'
               }`}
           >
             Lv.{level}

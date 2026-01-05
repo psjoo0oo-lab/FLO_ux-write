@@ -6,7 +6,7 @@ import { WritingContext, ToneLevel } from '../types';
 export const TONE_LEVEL_RANGES: Record<WritingContext, { min: ToneLevel; max: ToneLevel; recommended: ToneLevel }> = {
     [WritingContext.PRODUCT_UI]: {
         min: ToneLevel.NEUTRAL,      // Lv.2
-        max: ToneLevel.EMOTIONAL,     // Lv.4
+        max: ToneLevel.EXPRESSIVE,     // Lv.5
         recommended: ToneLevel.FRIENDLY // Lv.3
     },
     [WritingContext.MARKETING]: {
