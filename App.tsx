@@ -173,7 +173,7 @@ const Navigation = ({ isOpen, onClose, onOpenFeedback }: { isOpen: boolean; onCl
 
           <div className="flex items-center gap-3 px-3 py-2 text-sm text-slate-500 pt-2 border-t border-slate-800/50">
             <Settings className="w-4 h-4" />
-            <span>v1.0.3</span>
+            <span>v1.0.4</span>
           </div>
         </div>
       </nav>
