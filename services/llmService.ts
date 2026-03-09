@@ -480,22 +480,26 @@ const callLLM = async (systemInstruction: string, userMessage: string): Promise<
     throw new Error('Gemini API 키가 설정되지 않았습니다.');
   }
 
-  // 1차 시도: Gemini 2.0 Flash
+  // 구글 공식 API 규격: systemInstruction 과 contents 를 분리해서 전송
+  const buildBody = (withMime: boolean) => ({
+    systemInstruction: { parts: [{ text: systemInstruction }] },
+    contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+    generationConfig: {
+      temperature: 1.0,
+      topK: 40,
+      topP: 0.95,
+      maxOutputTokens: 8192,
+      ...(withMime ? { responseMimeType: 'application/json' } : {})
+    }
+  });
+
+  // 1차 시도: Primary Model (systemInstruction 분리 + JSON 강제)
   try {
     console.log(`✨ Connecting to ${PRIMARY_MODEL}...`);
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${PRIMARY_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: `${systemInstruction}\n\n${userMessage}` }] }],
-        generationConfig: {
-          temperature: 0.8,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 2048,
-          responseMimeType: "application/json"
-        }
-      })
+      body: JSON.stringify(buildBody(true))
     });
 
     if (response.ok) {
@@ -506,26 +510,18 @@ const callLLM = async (systemInstruction: string, userMessage: string): Promise<
       }
     }
 
-    // 503 또는 기타 오류 시 폴백
     console.log(`⚠️ ${PRIMARY_MODEL} 사용 불가, ${FALLBACK_MODEL}로 전환...`);
   } catch (error) {
     console.log(`⚠️ ${PRIMARY_MODEL} 오류, ${FALLBACK_MODEL}로 전환...`);
   }
 
-  // 2차 시도: Gemini 1.5 Flash (폴백)
+  // 2차 시도: Fallback Model
   try {
     console.log(`✨ Connecting to ${FALLBACK_MODEL}...`);
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${FALLBACK_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: `${systemInstruction}\n\n${userMessage}` }] }],
-        generationConfig: {
-          temperature: 0.8,
-          maxOutputTokens: 2048,
-          responseMimeType: "application/json"
-        }
-      })
+      body: JSON.stringify(buildBody(false))
     });
 
     if (!response.ok) {
@@ -627,6 +623,9 @@ export const analyzeAndRefineText = async (
     1. 사용자의 마케팅적 요구(궁금증 유발 등)보다 **[프로덕트 UI 상세 지침]의 컴포넌트별 규칙(글자 수, 형식)**이 우선입니다.
     2. 선택된 요소(**${element}**)에 해당하는 가이드라인을 위반하지 마세요. (예: 버튼인데 질문형 사용 금지)
     3. 원본과 너무 유사한 문구는 피하고, FLO의 '세련된 이웃' 페르소나를 극대화하세요.
+    4. **어휘 다양성 필수**: 입력 텍스트에 사용된 단어를 그대로 반복하지 말고, 같은 의미를 가진 다른 단어(동의어)로 바꿔 표현하세요.
+       - 예: '채워주다' → '입력', '작성', '기입', '자동 완성' 등으로 다양하게 표현
+       - 5개 대안 중 최소 2개는 입력 텍스트의 핵심 단어를 하나도 사용하지 않아야 합니다.
     
     
     **⚠️ 최우선 규칙: 사고 과정(Thinking) 후 작성 ⚠️**
