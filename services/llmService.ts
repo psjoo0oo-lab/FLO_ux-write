@@ -2,8 +2,8 @@ import { ToneLevel, WritingContext, AnalysisResult, CompareResult, WritingMode, 
 import { UX_CASES } from '../data/uxCases';
 
 // LLM 서비스: Gemini 2.0 Flash (최종 메인 - 속도 및 품질 최적화) → 1.5 Flash (폴백)
-const PRIMARY_MODEL = 'gemini-2.0-flash';
-const FALLBACK_MODEL = 'gemini-1.5-flash-latest';
+const PRIMARY_MODEL = 'gemini-2.5-flash';
+const FALLBACK_MODEL = 'gemini-flash-latest';
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 // ========================================
